@@ -1,10 +1,11 @@
 # Huntit
 
-![Huntit Logo](https://via.placeholder.com/200x200?text=Huntit) <!-- Replace with actual logo image -->
+![Huntit Logo]()
 
 ## Overview
 
-Huntit is a social scavenger hunt game where friends compete to find and snap items before time runs out. This cross-platform app is built with Kotlin Multiplatform and Compose, providing a seamless experience on both Android and iOS devices.
+Huntit is a social scavenger hunt game where friends compete to find and snap items before time runs out. 
+This cross-platform app is built with Kotlin Multiplatform and Compose, providing a seamless experience on both Android and iOS devices.
 
 Players can create game rooms, invite friends, and engage in time-based challenges where they need to take photos of specified items. The app includes features like real-time leaderboards, game history, and customizable game settings.
 
@@ -63,7 +64,6 @@ Before getting started, ensure you have the following installed:
 - **JDK 11** or newer
 - **Kotlin 2.2.21** or newer
 - **Git**
-- **Supabase account** (for backend services)
 
 ## Setup & Installation
 
@@ -74,17 +74,7 @@ git clone https://github.com/yourusername/huntit.git
 cd huntit
 ```
 
-### 2. Set up Supabase
-
-1. Create a Supabase project at [https://supabase.com](https://supabase.com)
-2. Create a `local.properties` file in the project root with your Supabase credentials:
-
-```properties
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_key
-```
-
-### 3. Android Setup
+### 2. Android Setup
 
 1. Open the project in Android Studio
 2. Sync Gradle files
@@ -93,7 +83,7 @@ SUPABASE_KEY=your_supabase_key
    - Choose an Android target device
    - Click Run
 
-### 4. iOS Setup
+### 3. iOS Setup
 
 1. Build the Kotlin framework for iOS:
 
@@ -215,18 +205,6 @@ Huntit/
 3. **Runtime Crashes**
    - Check Supabase connectivity
    - Ensure permissions are granted for camera access
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-feature`
-3. Commit your changes: `git commit -am 'Add new feature'`
-4. Push to the branch: `git push origin feature/my-feature`
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgments
 
