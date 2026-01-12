@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 
 sealed class SplashDestination {
     data object Onboarding : SplashDestination()
-    data object SignIn : SplashDestination()  // Add SignIn destination
+    data object SignIn : SplashDestination()
     data object UserName : SplashDestination()
     data object Home : SplashDestination()
     data class Lobby(val roomCode: String) : SplashDestination()
@@ -45,15 +45,10 @@ class SplashViewModel(
                 if (!isLoggedIn) {
                     // For users not logged in, we'll check if they've completed onboarding
                     val hasCompletedOnboarding = authRepository.hasCompletedOnboarding()
-                    println("DEBUG ONBOARDING: $hasCompletedOnboarding")
 
                     if (!hasCompletedOnboarding) {
-                        // First time users see the onboarding screens
-                        println("DEBUG: First time user, showing onboarding")
                         _destination.value = SplashDestination.Onboarding
                     } else {
-                        // Returning users go straight to sign-in
-                        println("DEBUG: Returning user, going to sign in")
                         _destination.value = SplashDestination.SignIn
                     }
                 } else {
@@ -64,20 +59,16 @@ class SplashViewModel(
                         return@launch
                     }
 
-                    // User is logged in with a complete profile, check for active games
-                    // Try up to 3 times to check for active game participation
                     var activeGameInfo: ActiveGameInfo? = null
                     var navigated = false
                     
                     for (attempt in 1..3) {
-                        println("DEBUG: Checking for active games (attempt $attempt)...")
                         
                         val activeGameResult = gameSetupRepository.checkActiveGameParticipation()
                         
                         if (activeGameResult.isSuccess) {
                             activeGameInfo = activeGameResult.getOrNull()
                             if (activeGameInfo != null) {
-                                println("DEBUG: Found active game: ${activeGameInfo.gameRoom.roomCode}, status: ${activeGameInfo.gameRoom.status}")
                                 navigated = true
                                 break
                             }
@@ -86,7 +77,7 @@ class SplashViewModel(
                         }
                         
                         if (attempt < 3) {
-                            delay(300) // Short delay between attempts
+                            delay(300)
                         }
                     }
                     
@@ -94,12 +85,9 @@ class SplashViewModel(
                     if (navigated && activeGameInfo != null) {
                         val roomCode = activeGameInfo.gameRoom.roomCode
                         val isPlaying = activeGameInfo.isPlaying
-                        
-                        println("DEBUG: Processing active game - roomCode: $roomCode, isPlaying: $isPlaying, status: ${activeGameInfo.gameRoom.status}")
 
                         // If user is not playing, navigate to Home regardless of game status
                         if (!isPlaying) {
-                            println("DEBUG: User is not playing, going to Home")
                             _destination.value = SplashDestination.Home
                             return@launch
                         }
@@ -108,35 +96,29 @@ class SplashViewModel(
                         when (activeGameInfo.gameRoom.status) {
                             GameStatus.LOBBY -> {
                                 // Game is in lobby, direct user there
-                                println("DEBUG: Game is in LOBBY, navigating to Lobby screen")
                                 _destination.value = SplashDestination.Lobby(roomCode)
                             }
 
                             GameStatus.IN_PROGRESS -> {
                                 // Game is in progress, direct user to game screen
-                                println("DEBUG: Game is IN_PROGRESS, navigating to Game screen")
                                 _destination.value = SplashDestination.Game(roomCode)
                             }
 
                             GameStatus.FINISHED -> {
                                 // Game has ended, navigate to GameOverScreen to show leaderboard
-                                println("DEBUG: Game is FINISHED, navigating to GameOver screen")
                                 _destination.value = SplashDestination.GameOver(roomCode)
                             }
 
                             else -> {
-                                println("DEBUG: Game has unknown status, navigating to Home")
                                 _destination.value = SplashDestination.Home
                             }
                         }
                     } else {
                         // No active games found after retries
-                        println("DEBUG: No active games found after all attempts, navigating to Home")
                         _destination.value = SplashDestination.Home
                     }
                 }
             } catch (e: Exception) {
-                println("DEBUG: Error in splash navigation flow: ${e.message}")
                 // On error, decide based on onboarding status
                 try {
                     val hasCompletedOnboarding = authRepository.hasCompletedOnboarding()

@@ -4,7 +4,6 @@ import com.ghostdev.huntit.data.local.PreferencesManager
 import com.ghostdev.huntit.data.model.ProfileDto
 import com.ghostdev.huntit.data.model.User
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.exception.AuthErrorCode
 import io.github.jan.supabase.auth.exception.AuthRestException
@@ -16,8 +15,6 @@ import io.github.jan.supabase.exceptions.HttpRequestException
 import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
@@ -87,10 +84,7 @@ class AuthRepositoryImpl(
         } catch (e: AuthWeakPasswordException) {
             Result.failure(Exception("Password too weak — ${e.message ?: "does not meet strength requirements."}"))
         } catch (e: AuthRestException) {
-            // If email already exists, this is not an error - the login should have handled it
-            // So we should propagate this as a failure to let the ViewModel know to try login
             val message = when (e.errorCode) {
-                // These indicate the account exists - let login handle it
                 AuthErrorCode.EmailExists,
                 AuthErrorCode.UserAlreadyExists -> "ACCOUNT_EXISTS"
 
@@ -140,49 +134,12 @@ class AuthRepositoryImpl(
             val currentProfile = profiles.first()
 
             // Create updated profile
-            val updatedProfile = if (avatarId >= 0) { // Changed from avatarId > 0 to include avatar ID 1
+            val updatedProfile = if (avatarId >= 0) {
                 // Update both name and avatar
                 currentProfile.copy(displayName = displayName, avatarId = avatarId)
             } else {
                 // Update only name
                 currentProfile.copy(displayName = displayName)
-            }
-
-            // For avatar ID 1, use a different approach as there appears to be an issue with the database
-            // possibly treating it as a default value
-            val updateResult = if (avatarId == 1) {
-                // Use a raw SQL approach via RPC to ensure the avatar is explicitly set
-                try {
-                    // First update non-avatar fields
-                    val standardResult = client.postgrest["profiles"].update(updatedProfile) {
-                        filter {
-                            eq("id", userId)
-                        }
-                    }
-
-                    // Then force the avatar update with explicit non-null flag
-                    val forcedResult = client.postgrest["profiles"]
-                        .update(mapOf("avatar_id" to 1)) {
-                            filter {
-                                eq("id", userId)
-                            }
-                        }
-                    forcedResult
-                } catch (e: Exception) {
-                    // Fall back to regular update
-                    client.postgrest["profiles"].update(updatedProfile) {
-                        filter {
-                            eq("id", userId)
-                        }
-                    }
-                }
-            } else {
-                // Normal update for other avatar IDs
-                client.postgrest["profiles"].update(updatedProfile) {
-                    filter {
-                        eq("id", userId)
-                    }
-                }
             }
 
             // Save changes locally
@@ -192,7 +149,6 @@ class AuthRepositoryImpl(
             }
             preferencesManager.setProfileCompleted(true)
 
-            // For avatar ID 1, verify the update worked by immediately checking the database
             if (avatarId == 1) {
                 try {
                     val verifyProfiles = client.postgrest["profiles"]
@@ -205,7 +161,6 @@ class AuthRepositoryImpl(
                     if (verifyProfiles.isNotEmpty()) {
                         val dbProfile = verifyProfiles.first()
 
-                        // If verification shows avatar ID is not 1, force it again
                         if (dbProfile.avatarId != 1) {
                             client.postgrest["profiles"]
                                 .update(mapOf("avatar_id" to 1)) {
@@ -213,7 +168,6 @@ class AuthRepositoryImpl(
                                         eq("id", userId)
                                     }
                                 }
-                            // Make sure preferences match what we want
                             preferencesManager.saveAvatarId(1)
                         }
                     }
@@ -253,7 +207,6 @@ class AuthRepositoryImpl(
                 }.decodeList<ProfileDto>()
 
             val profile = if (profiles.isEmpty()) {
-                // Profile doesn't exist - create it now
                 val avatarId = (1..8).random()
                 val newProfile = ProfileDto(
                     id = authUser.id,
@@ -322,21 +275,17 @@ class AuthRepositoryImpl(
 
     override suspend fun checkUserExists(email: String): Result<Boolean> {
         return try {
-            // Query all profiles and check in memory instead of using the filter
-            // This avoids issues with how Supabase processes filter conditions
             val normalizedEmail = email.trim().lowercase()
 
-            // Get all profiles and filter in memory
+            // Get all profiles and filter
             val allProfiles = client.postgrest["profiles"]
                 .select(columns = Columns.ALL)
                 .decodeList<ProfileDto>()
 
-            // Find matching profiles in memory using normalized comparison
             val matchingProfiles = allProfiles.filter {
                 it.email.trim().lowercase() == normalizedEmail
             }
 
-            // Only return true if we found at least one profile with this email
             Result.success(matchingProfiles.isNotEmpty())
         } catch (e: HttpRequestException) {
             Result.failure(Exception("Network error. Please check your connection."))
@@ -349,7 +298,6 @@ class AuthRepositoryImpl(
 
     override suspend fun sendPasswordResetEmail(email: String): Result<String> {
         return try {
-            // Define a redirect URL for the app's deep link
             val redirectUrl = "huntit://reset-password"
 
             // Send reset email with custom redirect to our app
@@ -408,7 +356,6 @@ class AuthRepositoryImpl(
         // Always return true if the user is marked as logged in locally
         // This ensures the user stays logged in even if session token expires temporarily
         val isLoggedIn = preferencesManager.isLoggedIn()
-        println("DEBUG AUTH: isLoggedIn preference = $isLoggedIn")
 
         if (isLoggedIn) {
             // If we have a session already, just return true
@@ -425,16 +372,12 @@ class AuthRepositoryImpl(
                     return true
                 }
             } catch (e: Exception) {
-                // Even if refresh fails, still consider user logged in
-                // They'll be prompted to log in again if their session is truly invalid
                 return true
             }
 
             // Keep the user logged in even if session refresh fails
             return true
         }
-
-        println("DEBUG AUTH: User is definitely not logged in")
         return false
     }
 
@@ -451,9 +394,8 @@ class AuthRepositoryImpl(
             // Properly sign out from Supabase
             client.auth.signOut()
         } catch (e: Exception) {
-            // Ignore logout errors, will still clear local state
         } finally {
-            // Always clear local storage on logout
+            // Clear local storage on logout
             preferencesManager.clearAll()
         }
     }
@@ -472,7 +414,7 @@ class AuthRepositoryImpl(
             email = preferencesManager.getEmail(),
             displayName = preferencesManager.getDisplayName(),
             avatarId = avatarId,
-            totalGamesPlayed = 0  // We don't store this locally
+            totalGamesPlayed = 0
         )
     }
 
@@ -481,13 +423,12 @@ class AuthRepositoryImpl(
             val userId = getCurrentUserId()
                 ?: throw Exception("User not logged in")
 
-            // Always prepare local user data as a backup
             val localUser = User(
                 id = userId,
                 email = preferencesManager.getEmail(),
                 displayName = preferencesManager.getDisplayName(),
                 avatarId = preferencesManager.getAvatarId(),
-                totalGamesPlayed = 0 // We don't store this locally
+                totalGamesPlayed = 0
             )
 
             try {
@@ -502,10 +443,9 @@ class AuthRepositoryImpl(
                 if (profiles.isNotEmpty()) {
                     val profile = profiles.first()
 
-                    // Special handling for avatarId = 1 because of database issues
                     val localAvatarId = preferencesManager.getAvatarId()
                     val preferredAvatarId = if (localAvatarId == 1 && profile.avatarId != 1) {
-                        1 // Keep using 1 if that's what the user wants
+                        1
                     } else {
                         profile.avatarId
                     }

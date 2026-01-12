@@ -44,13 +44,13 @@ class HomeViewModel(private val authRepository: AuthRepository) : ViewModel() {
     private fun loadUserProfile() {
         viewModelScope.launch {
             try {
-                // First load local data immediately (no loading state for this)
+
                 val localUser = getLocalUserProfile()
                 if (localUser != null) {
                     _uiState.update { it.copy(user = localUser) }
                 }
 
-                // Then fetch from server
+
                 _uiState.update { it.copy(isLoading = true) }
                 val result = authRepository.getUserProfile()
 
@@ -60,8 +60,7 @@ class HomeViewModel(private val authRepository: AuthRepository) : ViewModel() {
                         it.copy(user = serverUser, isLoading = false, errorMessage = null)
                     }
                 } else {
-                    // If server fetch fails but we have local data, keep using it
-                    // and just hide loading state
+
                     if (localUser != null) {
                         _uiState.update { it.copy(isLoading = false) }
                     } else {
@@ -101,12 +100,12 @@ class HomeViewModel(private val authRepository: AuthRepository) : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
-            // Update profile if changed
+
             val currentUser = _uiState.value.user
             val nameChanged = currentUser?.displayName != displayName
             val avatarChanged = currentUser?.avatarId != avatarId
 
-            println("Current avatar: ${currentUser?.avatarId}, Selected avatar: $avatarId, Changed: $avatarChanged")
+
 
             if (nameChanged || avatarChanged) {
                 val result = authRepository.updateProfile(displayName, avatarId)
@@ -122,7 +121,7 @@ class HomeViewModel(private val authRepository: AuthRepository) : ViewModel() {
                     return@launch
                 }
 
-                // Reload profile with updated information
+
                 loadUserProfile()
                 _uiState.update {
                     it.copy(
@@ -158,13 +157,12 @@ class HomeViewModel(private val authRepository: AuthRepository) : ViewModel() {
             try {
                 _uiState.update { it.copy(isLoggingOut = true) }
 
-                // Add a small delay to show loading state
                 delay(800)
 
-                // Perform logout
+
                 authRepository.logout()
 
-                // Show success message
+
                 _uiState.update {
                     it.copy(
                         isLoggingOut = false,
@@ -174,8 +172,7 @@ class HomeViewModel(private val authRepository: AuthRepository) : ViewModel() {
                     )
                 }
 
-                // Small delay to show the message before navigation
-                delay(500)
+                delay(1000)
 
             } catch (e: Exception) {
                 _uiState.update {

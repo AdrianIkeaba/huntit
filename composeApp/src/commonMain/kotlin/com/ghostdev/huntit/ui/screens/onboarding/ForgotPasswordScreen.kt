@@ -49,7 +49,6 @@ import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import com.ghostdev.huntit.utils.toUserFriendlyError
 
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameInputBg = Color(0xFFF7F7F7)
@@ -65,7 +64,6 @@ fun ForgotPasswordScreen(
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
-            // Check if it's a validation error or known error (these are already user-friendly)
             val isUserFriendlyError = it.contains("Please enter") || 
                                      it.contains("valid email") ||
                                      it.contains("No account found")
@@ -95,7 +93,6 @@ fun ForgotPasswordScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         AnimatedBackground(modifier = Modifier.fillMaxSize()) {
-            // Main Content Container
             Box(
                 modifier = Modifier
                     .padding(innerPadding)
@@ -145,9 +142,6 @@ fun ForgotPasswordScreen(
     }
 }
 
-// ------------------------------------------------------------
-// UI COMPONENTS
-// ------------------------------------------------------------
 
 @Composable
 private fun ResetPasswordInputContent(
@@ -182,14 +176,12 @@ private fun ResetPasswordInputContent(
             )
         }
 
-        // 3D Card Container
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.Center)
                 .height(IntrinsicSize.Min)
         ) {
-            // Shadow
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -254,9 +246,7 @@ private fun ResetEmailSentContent(
             modifier = Modifier.padding(bottom = 32.dp)
         )
 
-        // 3D Card Container
         Box(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-            // Shadow
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -272,7 +262,6 @@ private fun ResetEmailSentContent(
                     .padding(24.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    // Success Icon
                     Box(
                         modifier = Modifier
                             .size(60.dp)
@@ -321,11 +310,6 @@ private fun ResetEmailSentContent(
         }
     }
 }
-
-// ------------------------------------------------------------
-// SHARED GAMIFIED COMPONENTS
-// (Included locally so this file works standalone)
-// ------------------------------------------------------------
 
 @Composable
 private fun GameTextField(

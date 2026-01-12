@@ -34,7 +34,6 @@ import androidx.compose.ui.window.Dialog
 import com.ghostdev.huntit.ui.theme.patrickHandFont
 import com.ghostdev.huntit.ui.theme.testSohneFont
 
-// Consistent Game Colors - matching other screens
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
@@ -47,22 +46,19 @@ fun RemoveParticipantDialog(
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        // Main Dialog Box with 3D effect
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Shadow Layer (bottom part)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = GameShadowHeight) // Push down to create 3D effect
+                    .padding(top = GameShadowHeight)
                     .background(GameBlack, RoundedCornerShape(20.dp))
                     .height(200.dp)
             )
 
-            // Content Layer (top part)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -136,13 +132,11 @@ private fun DialogButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    // Similar to GamifiedButton but smaller for dialog use
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Animate the vertical offset (pushing down)
     val offsetY by animateDpAsState(
-        targetValue = if (isPressed) 3.dp else 0.dp, // Smaller offset than main button
+        targetValue = if (isPressed) 3.dp else 0.dp,
         animationSpec = spring(dampingRatio = 0.4f),
         label = "DialogButtonOffset"
     )
@@ -156,7 +150,6 @@ private fun DialogButton(
                 onClick = onClick
             )
     ) {
-        // Shadow (Static at bottom)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -165,7 +158,6 @@ private fun DialogButton(
                 .background(GameBlack, RoundedCornerShape(12.dp))
         )
 
-        // Touchable Button (Moves up and down)
         Box(
             modifier = Modifier
                 .offset(y = offsetY)

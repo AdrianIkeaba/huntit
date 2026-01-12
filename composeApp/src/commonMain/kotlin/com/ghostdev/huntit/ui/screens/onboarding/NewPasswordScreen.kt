@@ -58,7 +58,7 @@ fun NewPasswordScreen(
     navigateToLogin: () -> Unit,
     viewModel: NewPasswordViewModel = koinViewModel()
 ) {
-    // Pass the access token to the view model
+
     LaunchedEffect(accessToken, refreshToken) {
         if (accessToken != null && refreshToken != null) {
             viewModel.setTokens(accessToken, refreshToken, expiresIn)
@@ -70,20 +70,17 @@ fun NewPasswordScreen(
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
-            // Check if it's a validation or known user-friendly error
             val isUserFriendlyError = it.contains("Please enter") || 
                                      it.contains("Password must be") ||
                                      it.contains("Passwords don't match") ||
                                      it.contains("Invalid reset link")
-            
-            // Only convert technical errors to user-friendly message
+
             val displayError = if (isUserFriendlyError) {
-                it // Use validation error as-is
+                it
             } else {
                 it.toUserFriendlyError("Something went wrong while resetting your password.")
             }
-            
-            // Show the error message without "Error:" prefix for user-friendly errors
+
             snackbarHostState.showSnackbar(if (isUserFriendlyError) displayError else "Error: $displayError")
             viewModel.onErrorShown()
         }
@@ -158,14 +155,11 @@ private fun NewPasswordComponent(
                     )
                 }
 
-                // Centered Content
                 Column(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // 3D Card
                     Box(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-                        // Shadow Layer
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -173,7 +167,6 @@ private fun NewPasswordComponent(
                                 .background(GameBlack, RoundedCornerShape(20.dp))
                         )
 
-                        // Content Layer
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -182,7 +175,6 @@ private fun NewPasswordComponent(
                                 .padding(24.dp)
                         ) {
                             Column {
-                                // Password Field
                                 GameLabel("NEW PASSWORD")
                                 Spacer(Modifier.height(8.dp))
                                 GameTextField(
@@ -199,7 +191,6 @@ private fun NewPasswordComponent(
 
                                 Spacer(Modifier.height(20.dp))
 
-                                // Confirm Password Field
                                 GameLabel("CONFIRM PASSWORD")
                                 Spacer(Modifier.height(8.dp))
                                 GameTextField(
@@ -208,7 +199,7 @@ private fun NewPasswordComponent(
                                     enabled = !isLoading,
                                     placeholder = "••••••••",
                                     isPassword = true,
-                                    isError = passwordMatchError, // Visual feedback for error
+                                    isError = passwordMatchError,
                                     keyboardOptions = KeyboardOptions(
                                         keyboardType = KeyboardType.Password,
                                         imeAction = ImeAction.Done
@@ -267,10 +258,6 @@ private fun NewPasswordComponent(
     }
 }
 
-// ------------------------------------------------------------
-// SHARED GAMIFIED COMPONENTS
-// ------------------------------------------------------------
-
 @Composable
 private fun GameTextField(
     value: String,
@@ -285,7 +272,6 @@ private fun GameTextField(
     val borderColor = if (isError) ErrorRed else GameBlack.copy(alpha = 0.1f)
     val borderWidth = if (isError) 2.dp else 2.dp
 
-    // Animate border color change
     val animatedBorderColor by animateColorAsState(targetValue = borderColor, label = "BorderColor")
 
     BasicTextField(

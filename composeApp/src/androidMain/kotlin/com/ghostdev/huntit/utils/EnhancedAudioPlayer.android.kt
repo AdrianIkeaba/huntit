@@ -40,10 +40,8 @@ actual class EnhancedAudioPlayer(context: Context) {
     actual fun resumeBackgroundMusic() {
         // Check if we have a media item before trying to play
         if (musicPlayer.mediaItemCount > 0) {
-            // We have a media item, so we can resume
             musicPlayer.play()
         }
-        // If there's no media item, playBackgroundMusic() should be called instead
     }
 
     actual fun stopBackgroundMusic() {

@@ -28,10 +28,9 @@ import com.ghostdev.huntit.utils.LocalAudioPlayer
 import com.ghostdev.huntit.utils.createEnhancedAudioPlayer
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
+import org.koin.java.KoinJavaComponent.get
 
 class MainActivity : ComponentActivity() {
-
-    // This will be used to store the access token from the deep link
     companion object {
         private lateinit var instance: MainActivity
         val deepLinkAccessToken = mutableStateOf<String?>(null)
@@ -59,49 +58,37 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Process the initial intent if it exists
         intent?.let { handleIntent(it) }
 
         setContent {
             val audioPlayer = remember { createEnhancedAudioPlayer(this) }
             val lifecycleOwner = LocalLifecycleOwner.current
-            
-            // Get sound settings repository to access saved preferences
-            val soundSettingsRepository = remember { org.koin.java.KoinJavaComponent.get<com.ghostdev.huntit.data.repository.SoundSettingsRepository>(com.ghostdev.huntit.data.repository.SoundSettingsRepository::class.java) }
-            
+
             // Initialize sound settings
             LaunchedEffect(Unit) {
-                // We'll use the PreferencesManager directly since we can't easily access Flow values here
-                val prefManager = org.koin.java.KoinJavaComponent.get<com.ghostdev.huntit.data.local.PreferencesManager>(com.ghostdev.huntit.data.local.PreferencesManager::class.java)
-                
-                // Get values directly from preferences
+                val prefManager = get<com.ghostdev.huntit.data.local.PreferencesManager>(com.ghostdev.huntit.data.local.PreferencesManager::class.java)
+
                 val bgMusicEnabledValue = prefManager.isBackgroundMusicEnabled()
                 val soundEffectsEnabledValue = prefManager.isSoundEffectsEnabled()
                 val musicVolumeValue = prefManager.getMusicVolume()
                 val soundEffectsVolumeValue = prefManager.getSoundEffectsVolume()
-                
-                // Apply sound settings to the audio player
+
                 audioPlayer.setVolume(musicVolumeValue)
                 audioPlayer.setSoundEffectsVolume(soundEffectsVolumeValue)
-                
-                // Start background music only if it's enabled
+
                 if (bgMusicEnabledValue) {
                     audioPlayer.playBackgroundMusic("files/background_music.mp3")
                 }
-                
-                // Log the applied settings
-                println("Applied sound settings on app launch: bgMusic=$bgMusicEnabledValue, soundEffects=$soundEffectsEnabledValue, musicVol=$musicVolumeValue, soundEffectsVol=$soundEffectsVolumeValue")
+
             }
 
             // Handle lifecycle events
             DisposableEffect(lifecycleOwner) {
                 val observer = LifecycleEventObserver { _, event ->
-                    // Get preferences manager for direct access
-                    val prefManager = org.koin.java.KoinJavaComponent.get<com.ghostdev.huntit.data.local.PreferencesManager>(com.ghostdev.huntit.data.local.PreferencesManager::class.java)
+                    val prefManager = get<com.ghostdev.huntit.data.local.PreferencesManager>(com.ghostdev.huntit.data.local.PreferencesManager::class.java)
                     
                     when (event) {
                         Lifecycle.Event.ON_START -> {
-                            // Check if background music is enabled from preferences
                             val isMusicEnabled = prefManager.isBackgroundMusicEnabled()
                             
                             // Only resume if background music is enabled
@@ -139,15 +126,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
-        // Check if the intent is from our deep link
         if (intent.action == Intent.ACTION_VIEW) {
             val uri = intent.data
             if (uri != null && uri.scheme == "huntit" && uri.host == "reset-password") {
-                // Use the platform-independent deep link handler
                 val fullUri = uri.toString()
                 DeepLinkHandler.instance.handleResetPasswordDeepLink(fullUri)
 
-                // Also update the companion object for backward compatibility during refactoring
                 uri.fragment?.let { fragment ->
                     val accessTokenParam = "access_token="
                     if (fragment.contains(accessTokenParam)) {

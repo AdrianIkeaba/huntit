@@ -35,14 +35,12 @@ import huntit.composeapp.generated.resources.people
 import huntit.composeapp.generated.resources.code
 import org.jetbrains.compose.resources.painterResource
 
-// Game UI colors
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
-private val PublicColor = Color(0xFF42A5F5)  // Blue for public games
-private val PrivateColor = MainYellow  // Yellow for private games to match app theme
+private val PublicColor = Color(0xFF42A5F5)
+private val PrivateColor = MainYellow
 private val GameGrey = Color(0xFFF0F0F0)
 
-// Shadow height for 3D effect
 private val GameShadowHeight = 4.dp
 
 @Composable
@@ -57,7 +55,6 @@ fun JoinOptionDialog(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Shadow (3D effect bottom layer)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -65,8 +62,7 @@ fun JoinOptionDialog(
                     .height(360.dp)
                     .background(GameBlack, RoundedCornerShape(32.dp))
             )
-            
-            // Main content
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -76,7 +72,6 @@ fun JoinOptionDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // Title
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -98,7 +93,6 @@ fun JoinOptionDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Public Games Option
                     CircleOptionButton(
                         modifier = Modifier.weight(1f),
                         title = "PUBLIC",
@@ -124,8 +118,7 @@ fun JoinOptionDialog(
                         }
                     )
                 }
-                
-                // Divider
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.7f)
@@ -172,11 +165,9 @@ private fun CircleOptionButton(
             ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Icon circle with shadow
         Box(
             modifier = Modifier.size(110.dp)
         ) {
-            // Shadow layer (3D effect)
             Box(
                 modifier = Modifier
                     .size(110.dp)
@@ -184,8 +175,7 @@ private fun CircleOptionButton(
                     .background(GameBlack, CircleShape)
                     .align(Alignment.Center)
             )
-            
-            // Main circle
+
             Box(
                 modifier = Modifier
                     .size(110.dp)
@@ -248,7 +238,6 @@ private fun CloseButton(
         modifier = Modifier.size(60.dp)
             .scale(scale)
     ) {
-        // Shadow (3D effect)
         Box(
             modifier = Modifier
                 .size(48.dp)

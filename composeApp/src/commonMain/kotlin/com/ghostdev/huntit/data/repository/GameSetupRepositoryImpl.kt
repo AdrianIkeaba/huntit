@@ -19,7 +19,6 @@ import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.datetime.Clock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -118,7 +117,8 @@ class GameSetupRepositoryImpl(
                 client.postgrest["game_participants"]
                     .insert(participantDto)
             } catch (e: Exception) {
-                println("Warning: Created room but failed to add host as participant: ${e.message}")
+                println("Error inserting participant: ${e.message}")
+                e.printStackTrace()
             }
 
             return Result.success(roomCode)
@@ -242,8 +242,6 @@ class GameSetupRepositoryImpl(
                 }
                 .decodeList<GameParticipantDto>()
 
-            // Add debugging to track participations found
-            println("DEBUG: Found ${participations.size} active participations for user ${currentUser.id}")
             
             if (participations.isEmpty()) {
                 // Try one more time with a slight delay to ensure database consistency
@@ -265,10 +263,6 @@ class GameSetupRepositoryImpl(
                 }
             }
 
-            // Log each participation for debugging
-            participations.forEach { participation ->
-                println("DEBUG: Participation found: roomId=${participation.roomId}, isHost=${participation.isHost}, isPlaying=${participation.isPlaying}")
-            }
 
             // Get the room IDs for all participations, sorted with host rooms first
             val sortedParticipations = participations.sortedByDescending { it.isHost }
@@ -293,15 +287,8 @@ class GameSetupRepositoryImpl(
             } else {
                 emptyList()
             }
-                
-            // Log rooms for debugging
-            println("DEBUG: Found ${allParticipantRooms.size} game rooms for user participation")
-            allParticipantRooms.forEach { room ->
-                println("DEBUG: Room: id=${room.id}, code=${room.roomCode}, status=${room.status}")
-            }
 
             // Sort active games: LOBBY first, then IN_PROGRESS, then FINISHED
-            // For equal status, prioritize host rooms, then most recently updated
             val activeGameRooms = allParticipantRooms
                 .filter {
                     it.status == GameStatus.LOBBY || it.status == GameStatus.IN_PROGRESS || it.status == GameStatus.FINISHED
@@ -331,7 +318,6 @@ class GameSetupRepositoryImpl(
             // Return the highest priority game room with playing status
             val topPriorityRoom = activeGameRooms.first()
             val isPlaying = isPlayingMap[topPriorityRoom.id] ?: false // Default to false for safety
-            println("DEBUG: Selected room: id=${topPriorityRoom.id}, code=${topPriorityRoom.roomCode}, status=${topPriorityRoom.status}, isPlaying=$isPlaying")
             
             return Result.success(ActiveGameInfo(topPriorityRoom, isPlaying))
         } catch (e: Exception) {
@@ -365,7 +351,6 @@ class GameSetupRepositoryImpl(
         try {
             // Close existing channel if it exists
             if (lobbyChannel != null) {
-                println("Closing existing lobby channel and creating a new one")
                 try {
                     lobbyChannel?.unsubscribe()
                 } catch (e: Exception) {
@@ -374,8 +359,7 @@ class GameSetupRepositoryImpl(
                 lobbyChannel = null
             }
 
-            println("Setting up new lobby channel for room $roomId")
-            // Create a unique channel ID to avoid caching issues
+            // Create a unique channel ID to avoid caching problems
             val channelId = "lobby_${roomId}_${(10000..99999).random()}"
             lobbyChannel = client.realtime.channel(channelId)
 
@@ -399,7 +383,6 @@ class GameSetupRepositoryImpl(
 
             // Subscribe to the channel first before fetching initial data
             channel.subscribe()
-            println("Subscribed to channel $channelId")
 
             // Short delay to ensure subscription is active
             delay(100)
@@ -410,10 +393,7 @@ class GameSetupRepositoryImpl(
 
             // Collect participant changes in a coroutine
             realtimeScope.launch {
-                println("Starting participant changes flow for room $roomId")
-                participantsChangeFlow.collect { action ->
-                    println("Received participant change: $action")
-
+                participantsChangeFlow.collect { _ ->
                     // Re-fetch all participants when any change occurs
                     fetchAndEmitParticipants(roomId)
                 }
@@ -421,9 +401,7 @@ class GameSetupRepositoryImpl(
 
             // Collect game room changes in a coroutine
             realtimeScope.launch {
-                println("Starting game room changes flow for room $roomId")
-                gameRoomChangeFlow.collect { action ->
-                    println("Received game room change: $action")
+                gameRoomChangeFlow.collect { _ ->
 
                     // Re-fetch game room when any change occurs and emit to subscribers
                     // The LobbyViewModel will check if the game has started
@@ -446,7 +424,6 @@ class GameSetupRepositoryImpl(
                 }
                 .decodeList<GameParticipantDto>()
 
-            println("Emitting participants update: ${participants.size} participants")
             _participantsFlow.emit(participants)
         } catch (e: Exception) {
             println("Error fetching participants: ${e.message}")
@@ -465,7 +442,6 @@ class GameSetupRepositoryImpl(
 
             if (gameRooms.isNotEmpty()) {
                 val gameRoom = gameRooms.first()
-                println("Emitting game room update: Room ${gameRoom.id}, Status: ${gameRoom.status}, Phase: ${gameRoom.currentPhase}")
                 _gameRoomFlow.emit(gameRoom)
             }
         } catch (e: Exception) {
@@ -531,7 +507,6 @@ class GameSetupRepositoryImpl(
 
     override suspend fun removeParticipant(roomId: String, userId: String): Result<Unit> {
         return try {
-            println("Repository: Removing participant $userId from room $roomId")
             client.postgrest["game_participants"]
                 .delete {
                     filter {
@@ -595,8 +570,7 @@ class GameSetupRepositoryImpl(
             val participantCountMap = participants
                 .groupBy { it.roomId }
                 .mapValues { it.value.size }
-                
-            // Ensure all requested roomIds are in the map, even with zero participants
+
             val resultMap = roomIds.associateWith { roomId ->
                 participantCountMap[roomId] ?: 0
             }

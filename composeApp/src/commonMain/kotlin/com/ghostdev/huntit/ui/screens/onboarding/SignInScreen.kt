@@ -86,14 +86,12 @@ fun SignInScreen(
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
-            // Check if it's a validation error (these are already user-friendly)
             val isValidationError = it.contains("Please enter") || 
                                    it.contains("Password must be") ||
                                    it.contains("valid email")
-                                   
-            // Only convert technical errors to user-friendly message
+
             val displayError = if (isValidationError) {
-                it // Use validation error as-is
+                it
             } else {
                 it.toUserFriendlyError("Something went wrong during sign in.")
             }
@@ -288,21 +286,19 @@ fun GamifiedCard(
     // Get keyboard controller and focus manager to hide keyboard
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
-    // This creates the "3D" card effect (White card sitting on Black shadow)
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Min) // Wraps content height
+            .height(IntrinsicSize.Min)
     ) {
-        // Shadow Layer (The bottom part)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 6.dp) // Push down to create depth
+                .padding(top = 6.dp)
                 .background(GameBlack, RoundedCornerShape(20.dp))
         )
 
-        // Content Layer (The top part)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -362,9 +358,6 @@ fun GamifiedCard(
     }
 }
 
-/**
- * A custom TextField wrapper that looks like a slot or game input.
- */
 @Composable
 fun GameTextField(
     value: String,
@@ -415,9 +408,6 @@ fun GameTextField(
     )
 }
 
-/**
- * A Button that physically moves down when pressed (Duolingo style).
- */
 @Composable
 fun GamifiedButton(
     text: String,
@@ -428,7 +418,6 @@ fun GamifiedButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val audioPlayer = LocalAudioPlayer.current
 
-    // Animate the vertical offset (pushing down)
     val offsetY by animateDpAsState(
         targetValue = if (isPressed) GameShadowHeight else 0.dp,
         animationSpec = spring(dampingRatio = 0.4f), // Bouncy spring
@@ -441,7 +430,7 @@ fun GamifiedButton(
             .height(58.dp) // Total height reserved
             .clickable(
                 interactionSource = interactionSource,
-                indication = null, // Disable default ripple, we use physical movement
+                indication = null,
                 enabled = !isLoading,
                 onClick = {
                     audioPlayer?.playSound("files/button_click.mp3")
@@ -449,20 +438,18 @@ fun GamifiedButton(
                 }
             )
     ) {
-        // Shadow (Static at bottom)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(54.dp) // Match button height
+                .height(54.dp)
                 .background(GameBlack, RoundedCornerShape(16.dp))
         )
 
-        // Touchable Button (Moves up and down)
         Box(
             modifier = Modifier
-                .offset(y = offsetY) // Moves down when pressed
-                .align(Alignment.TopCenter) // Starts at top
+                .offset(y = offsetY)
+                .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .height(54.dp)
                 .background(MainYellow, RoundedCornerShape(16.dp))
@@ -505,9 +492,6 @@ fun GameLabel(text: String) {
     )
 }
 
-/**
- * A gamified dialog asking if the user wants to create a new account.
- */
 @Composable
 fun CreateAccountDialog(
     email: String,
@@ -515,23 +499,20 @@ fun CreateAccountDialog(
     onConfirm: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        // Main Dialog Box with 3D effect
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Shadow Layer (bottom part)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 6.dp) // Push down to create 3D effect
+                    .padding(top = 6.dp)
                     .shadow(8.dp, RoundedCornerShape(20.dp))
                     .background(GameBlack, RoundedCornerShape(20.dp))
                     .height(IntrinsicSize.Min)
             )
 
-            // Content Layer (top part)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -619,21 +600,19 @@ private fun DialogButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    // Similar to GamifiedButton but smaller and simpler
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val audioPlayer = LocalAudioPlayer.current
 
-    // Animate the vertical offset (pushing down)
     val offsetY by animateDpAsState(
-        targetValue = if (isPressed) 2.dp else 0.dp, // Smaller offset than main button
+        targetValue = if (isPressed) 2.dp else 0.dp,
         animationSpec = spring(dampingRatio = 0.4f),
         label = "DialogButtonOffset"
     )
 
     Box(
         modifier = modifier
-            .height(46.dp) // Smaller than main button
+            .height(46.dp)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -643,7 +622,6 @@ private fun DialogButton(
                 }
             )
     ) {
-        // Shadow (Static at bottom)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -652,7 +630,6 @@ private fun DialogButton(
                 .background(GameBlack, RoundedCornerShape(12.dp))
         )
 
-        // Touchable Button (Moves up and down)
         Box(
             modifier = Modifier
                 .offset(y = offsetY)

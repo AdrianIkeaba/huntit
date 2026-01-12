@@ -5,15 +5,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/**
- * Class for storing and retrieving room codes between screens
- * This implementation keeps the room code only in memory for the current session
- * and does not persist it across app restarts
- */
 class RoomCodeStorage(private val settings: Settings) {
     private val ROOM_CODE_KEY = "current_room_code"
 
-    // In-memory cache to avoid frequent preference reads
     private val _currentRoomCode = MutableStateFlow("")
     val currentRoomCode: StateFlow<String> = _currentRoomCode.asStateFlow()
 

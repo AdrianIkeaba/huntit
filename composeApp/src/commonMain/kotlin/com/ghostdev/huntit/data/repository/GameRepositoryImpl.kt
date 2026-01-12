@@ -42,12 +42,10 @@ class GameRepositoryImpl(
     // Real-time channel for game subscriptions
     private var gameChannel: RealtimeChannel? = null
 
-    // SharedFlow emitters for real-time updates
     private val _gameRoomFlow = MutableSharedFlow<GameRoomDto>(replay = 1)
     private val _participantsFlow = MutableSharedFlow<List<GameParticipantDto>>(replay = 1)
     private val _submissionsFlow = MutableSharedFlow<List<RoundSubmissionDto>>(replay = 1)
 
-    // Scope for collecting realtime changes
     private val realtimeScope = CoroutineScope(Dispatchers.Default)
 
     // Track current room for re-fetching
@@ -203,9 +201,6 @@ class GameRepositoryImpl(
             }
             val room = roomResult.getOrNull()!!
 
-            // Generate challenges using edge function
-            println("Generating challenges for room $roomId, theme: ${room.theme.name.lowercase()}, rounds: ${room.totalRounds}")
-
             val generateResponse = client.functions.invoke(
                 function = "generate-challenges",
                 body = buildJsonObject {
@@ -216,7 +211,6 @@ class GameRepositoryImpl(
             )
 
             val generateBody = generateResponse.body<String>()
-            println("Generate challenges response: $generateBody")
 
             // Check if challenge generation succeeded
             val generateResult = json.decodeFromString<GenerateChallengesResponse>(generateBody)
@@ -225,7 +219,6 @@ class GameRepositoryImpl(
             }
 
             // Now start the game with the RPC function
-            println("Starting game for room $roomId with user $userId")
             val startResult = client.postgrest.rpc(
                 function = "start_game",
                 parameters = buildJsonObject {
@@ -234,7 +227,6 @@ class GameRepositoryImpl(
                 }
             ).decodeAs<StartGameResponse>()
 
-            println("Start game response: $startResult")
 
             // Check if start succeeded
             if (!startResult.success) {
@@ -252,11 +244,9 @@ class GameRepositoryImpl(
     @OptIn(ExperimentalTime::class)
     override suspend fun getServerTime(): Result<Instant> {
         return try {
-            // RPC returns a timestamp string directly
             val response = client.postgrest.rpc("get_server_time")
                 .decodeAs<String>()
 
-            // Parse the ISO 8601 timestamp (remove any surrounding quotes)
             val timestamp = response.trim().removeSurrounding("\"")
             val instant = Instant.parse(timestamp)
             Result.success(instant)
@@ -273,7 +263,7 @@ class GameRepositoryImpl(
                 setupGameChannel(roomId)
             }
             .onCompletion {
-                // Channel cleanup will be handled by unsubscribeFromGame()
+
             }
     }
 
@@ -283,7 +273,7 @@ class GameRepositoryImpl(
                 setupGameChannel(roomId)
             }
             .onCompletion {
-                // Channel cleanup will be handled by unsubscribeFromGame()
+
             }
     }
 
@@ -293,7 +283,7 @@ class GameRepositoryImpl(
                 setupGameChannel(roomId)
             }
             .onCompletion {
-                // Channel cleanup will be handled by unsubscribeFromGame()
+
             }
     }
 
@@ -306,7 +296,6 @@ class GameRepositoryImpl(
         try {
             // Close existing channel if it exists
             if (gameChannel != null) {
-                println("Closing existing game channel")
                 try {
                     gameChannel?.unsubscribe()
                 } catch (e: Exception) {
@@ -316,7 +305,6 @@ class GameRepositoryImpl(
             }
 
             currentRoomId = roomId
-            println("Setting up game channel for room $roomId")
 
             // Create a unique channel ID
             val channelId = "game_${roomId}_${(10000..99999).random()}"
@@ -350,9 +338,7 @@ class GameRepositoryImpl(
 
             // Subscribe to the channel first
             channel.subscribe()
-            println("Subscribed to game channel $channelId")
 
-            // Short delay to ensure subscription is active
             delay(100)
 
             // Fetch initial data and emit
@@ -362,27 +348,21 @@ class GameRepositoryImpl(
 
             // Collect game room changes
             realtimeScope.launch {
-                println("Starting game room changes flow")
-                gameRoomChangeFlow.collect { action ->
-                    println("Received game room change: $action")
+                gameRoomChangeFlow.collect { _ ->
                     fetchAndEmitGameRoom(roomId)
                 }
             }
 
             // Collect participants changes
             realtimeScope.launch {
-                println("Starting participants changes flow")
-                participantsChangeFlow.collect { action ->
-                    println("Received participants change: $action")
+                participantsChangeFlow.collect { _ ->
                     fetchAndEmitParticipants(roomId)
                 }
             }
 
             // Collect submissions changes
             realtimeScope.launch {
-                println("Starting submissions changes flow")
-                submissionsChangeFlow.collect { action ->
-                    println("Received submissions change: $action")
+                submissionsChangeFlow.collect { _ ->
                     fetchAndEmitSubmissions(roomId)
                 }
             }
@@ -404,7 +384,6 @@ class GameRepositoryImpl(
                 .decodeList<GameRoomDto>()
 
             if (rooms.isNotEmpty()) {
-                println("Emitting game room update: ${rooms.first()}")
                 _gameRoomFlow.emit(rooms.first())
             }
         } catch (e: Exception) {
@@ -421,8 +400,6 @@ class GameRepositoryImpl(
                     }
                 }
                 .decodeList<GameParticipantDto>()
-
-            println("Emitting participants update: ${participants.size} participants")
             _participantsFlow.emit(participants)
         } catch (e: Exception) {
             println("Error fetching participants: ${e.message}")
@@ -439,7 +416,6 @@ class GameRepositoryImpl(
                 }
                 .decodeList<RoundSubmissionDto>()
 
-            println("Emitting submissions update: ${submissions.size} submissions")
             _submissionsFlow.emit(submissions)
         } catch (e: Exception) {
             println("Error fetching submissions: ${e.message}")
@@ -482,7 +458,6 @@ class GameRepositoryImpl(
         isPlaying: Boolean
     ): Result<Unit> {
         return try {
-            // Update is_playing field for the user in this game
             client.postgrest["game_participants"]
                 .update({
                     set("is_playing", isPlaying)

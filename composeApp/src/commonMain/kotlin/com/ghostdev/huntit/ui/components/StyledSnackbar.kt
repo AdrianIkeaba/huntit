@@ -27,11 +27,10 @@ import huntit.composeapp.generated.resources.close
 import huntit.composeapp.generated.resources.info
 import org.jetbrains.compose.resources.painterResource
 
-// Define gamified colors for the snackbar
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
-private val ErrorRed = Color(0xFFFF4B4B) // Bright alert red
-private val InfoBlue = Color(0xFF1CB0F6) // Gamified blue (or use MainYellow)
+private val ErrorRed = Color(0xFFFF4B4B)
+private val InfoBlue = Color(0xFF1CB0F6)
 
 @Composable
 fun StyledSnackbarHost(
@@ -41,18 +40,16 @@ fun StyledSnackbarHost(
     Box(
         modifier = modifier
             .fillMaxSize()
-        // Takes up the full screen to allow us to control absolute positioning inside
-        // purely for the snackbar without blocking touches elsewhere (SnackbarHost handles touch pass-through)
     ) {
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 30.dp) // Pushes it up so it floats above navigation/bottom edge
+                .padding(bottom = 30.dp)
                 .fillMaxWidth(),
             snackbar = { data ->
                 val isError = data.visuals.message.startsWith("Error:")
-                // Clean the message for display
+
                 val cleanMessage = data.visuals.message.removePrefix("Error:").trim()
 
                 GamifiedSnackbar(
@@ -70,31 +67,25 @@ fun GamifiedSnackbar(
     isError: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // Configuration based on state
     val backgroundColor = if (isError) ErrorRed else InfoBlue
     val textColor = GameWhite
     val titleText = if (isError) "OH NO!" else "HEY HUNTER!"
     val icon = if (isError) Res.drawable.close else Res.drawable.info
 
-    // Shape styling
     val containerShape = RoundedCornerShape(16.dp)
 
-    // 3D Shadow Logic
     Box(
         modifier = modifier
-            .padding(horizontal = 20.dp) // Side padding from screen edges
+            .padding(horizontal = 20.dp)
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
     ) {
-        // 1. The Shadow (Bottom Layer)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 4.dp, start = 2.dp) // Offset for 3D effect
+                .padding(top = 4.dp, start = 2.dp)
                 .background(GameBlack, containerShape)
         )
-
-        // 2. The Card (Top Layer)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -126,7 +117,7 @@ fun GamifiedSnackbar(
                 Text(
                     text = titleText,
                     style = TextStyle(
-                        fontFamily = testSohneFont(), // Bold font for title
+                        fontFamily = testSohneFont(),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 0.5.sp
@@ -137,7 +128,7 @@ fun GamifiedSnackbar(
                 Text(
                     text = message,
                     style = TextStyle(
-                        fontFamily = patrickHandFont(), // Handwritten font for body
+                        fontFamily = patrickHandFont(),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Normal
                     ),

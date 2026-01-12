@@ -94,13 +94,11 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 import com.ghostdev.huntit.utils.toUserFriendlyError
 
-// Consistent Game Colors - matching other screens
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
 private val GameShadowHeight = 4.dp
 
-// Helper function to format seconds to display format
 private fun formatDurationSecondsLobby(seconds: Int): String {
     return when {
         seconds < 60 -> "${seconds}s"
@@ -164,7 +162,7 @@ fun LobbyScreen(
         onRemoveParticipant = { participant ->
             viewModel.removeParticipant(participant.id)
         },
-        onErrorShown = { viewModel.clearError() }  // Add this parameter
+        onErrorShown = { viewModel.clearError() }
     )
 }
 
@@ -186,7 +184,7 @@ private fun LobbyComponent(
     onSettingsClick: () -> Unit = {},
     onLeaveClick: () -> Unit = {},
     onRemoveParticipant: (ParticipantUiModel) -> Unit = {},
-    onErrorShown: () -> Unit = {} // Add callback for when error is shown
+    onErrorShown: () -> Unit = {}
 ) {
     var showBottomSheet by remember { mutableStateOf(false) }
     var showQuickRulesDialog by remember { mutableStateOf(false) }
@@ -209,25 +207,20 @@ private fun LobbyComponent(
         )
     }
 
-    // Display error as snackbar instead of error screen
     LaunchedEffect(error) {
         if (error != null) {
-            // Check if this is a validation or known user-friendly error
             val isUserFriendlyError = error.contains("At least 2 players are needed") ||
                                      error.contains("Room does not exist") ||
                                      error.contains("Game is full")
-            
-            // Only convert technical errors to user-friendly message
+
             val displayError = if (isUserFriendlyError) {
-                error // Use validation error as-is
+                error
             } else {
                 error.toUserFriendlyError("Something went wrong with the game room.")
             }
-            
-            // Show the error message without "Error:" prefix for user-friendly errors
+
             snackbarHostState.showSnackbar(if (isUserFriendlyError) displayError else "Error: $displayError")
-            
-            // Call the callback to clear the error in the ViewModel
+
             onErrorShown()
         }
     }
@@ -264,8 +257,7 @@ private fun LobbyComponent(
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                // Fixed: Add modifier for proper width constraints
-                                modifier = Modifier.fillMaxWidth(0.7f) // Allow max 70% of parent width for the row
+                                modifier = Modifier.fillMaxWidth(0.7f)
                             ) {
                                 Text(
                                     text = "${gameRoomDetails?.roomName ?: "Game Room"} Lobby",
@@ -275,10 +267,8 @@ private fun LobbyComponent(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 20.sp
                                     ),
-                                    // Fixed: Added text truncation handling
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    // Fixed: Add weight to allow text to be truncated properly
                                     modifier = Modifier.weight(1f, fill = false)
                                 )
 
@@ -337,7 +327,6 @@ private fun LobbyComponent(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Settings icon with 3D effect (only for host)
                             if (isHost) {
                                 Box(
                                     modifier = Modifier.size(36.dp)
@@ -369,8 +358,8 @@ private fun LobbyComponent(
                                         )
                                     }
                                 }
-                            } 
-                            // Exit icon with 3D effect (only for non-hosts)
+                            }
+
                             else {
                                 Box(
                                     modifier = Modifier.size(36.dp)
@@ -390,7 +379,7 @@ private fun LobbyComponent(
                                             .size(36.dp)
                                             .border(1.5.dp, GameBlack, CircleShape)
                                             .clip(CircleShape)
-                                            .background(Color(0xFFF39E9E), CircleShape) // Light red color for exit button
+                                            .background(Color(0xFFF39E9E), CircleShape)
                                             .clickable { 
                                                 showLeaveConfirmDialog = true 
                                             },
@@ -448,7 +437,6 @@ private fun LobbyComponent(
                         onClick = { showBottomSheet = true }
                     )
 
-                    // Room Code Card with 3D effect
                     Box(
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -656,10 +644,9 @@ private fun LobbyComponent(
             }
         }
 
-        // Add the StyledSnackbarHost
         StyledSnackbarHost(
             snackbarHostState = snackbarHostState,
-            modifier = Modifier.zIndex(10f) // Make sure it appears above all other content
+            modifier = Modifier.zIndex(10f)
         )
     }
 }
@@ -675,9 +662,8 @@ fun GamifiedActionButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val audioPlayer = com.ghostdev.huntit.utils.LocalAudioPlayer.current
+    val audioPlayer = LocalAudioPlayer.current
 
-    // Animate the vertical offset (pushing down)
     val offsetY by animateDpAsState(
         targetValue = if (isPressed) GameShadowHeight else 0.dp,
         animationSpec = spring(dampingRatio = 0.4f), // Bouncy spring
@@ -689,7 +675,7 @@ fun GamifiedActionButton(
             .height(58.dp) // Total height reserved
             .clickable(
                 interactionSource = interactionSource,
-                indication = null, // No ripple, using custom animation
+                indication = null,
                 enabled = !isLoading,
                 onClick = {
                     audioPlayer?.playSound("files/button_click.mp3")
@@ -706,7 +692,6 @@ fun GamifiedActionButton(
                 .background(GameBlack, RoundedCornerShape(16.dp))
         )
 
-        // Button Layer (Moves when pressed)
         Box(
             modifier = Modifier
                 .offset(y = offsetY)

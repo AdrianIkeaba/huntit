@@ -33,7 +33,6 @@ import com.ghostdev.huntit.ui.theme.testSohneFont
 import huntit.composeapp.generated.resources.add
 import huntit.composeapp.generated.resources.minus
 
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
@@ -49,7 +48,6 @@ fun NumberOfRoundsCard(
     val clampedTotalRounds = totalRounds.coerceIn(3, 15)
     var rounds by remember { mutableStateOf(clampedTotalRounds) }
 
-    // Keep UI in sync with props
     LaunchedEffect(clampedTotalRounds) {
         rounds = clampedTotalRounds
     }
@@ -73,13 +71,12 @@ fun NumberOfRoundsCard(
                 .padding(16.dp),
             horizontalAlignment = Alignment.Start
         ) {
-            // Title row with 3D effect
+            // Title row
             Row(
                 modifier = Modifier.wrapContentSize(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Icon with circular background
                 Box(
                     modifier = Modifier
                         .size(24.dp)
@@ -107,7 +104,6 @@ fun NumberOfRoundsCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Number controls with 3D effect
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -167,14 +163,12 @@ private fun NumberControlButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Animated scale effect
     val scale by animateFloatAsState(
         targetValue = if (isPressed && enabled) 0.9f else 1f,
         animationSpec = spring(dampingRatio = 0.4f),
         label = "ButtonScale"
     )
 
-    // Offset for 3D effect
     val offsetY by animateDpAsState(
         targetValue = if (isPressed && enabled) GameShadowHeight else 0.dp,
         animationSpec = spring(dampingRatio = 0.4f),
@@ -186,7 +180,6 @@ private fun NumberControlButton(
             .size(48.dp)
             .scale(scale)
     ) {
-        // Shadow layer (static at bottom)
         Box(
             modifier = Modifier
                 .size(48.dp)
@@ -194,7 +187,6 @@ private fun NumberControlButton(
                 .background(GameBlack)
         )
 
-        // Content layer (moves when pressed)
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier

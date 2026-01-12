@@ -38,7 +38,6 @@ import huntit.composeapp.generated.resources.Res
 import huntit.composeapp.generated.resources.info
 import org.jetbrains.compose.resources.painterResource
 
-// Consistent Game Colors - matching other screens
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
@@ -49,22 +48,19 @@ fun QuickRulesDialog(
     onDismiss: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        // Main Dialog Box with 3D effect
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Shadow Layer (bottom part)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = GameShadowHeight) // Push down to create 3D effect
+                    .padding(top = GameShadowHeight)
                     .background(GameBlack, RoundedCornerShape(20.dp))
                     .height(280.dp)
             )
 
-            // Content Layer (top part)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -137,8 +133,7 @@ fun QuickRulesDialog(
                     }
                     
                     Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // "Got it" button with 3D effect
+
                     GamifiedDialogButton(
                         text = "GOT IT!",
                         onClick = onDismiss
@@ -157,7 +152,6 @@ fun GamifiedDialogButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Animate the vertical offset (pushing down)
     val offsetY by animateDpAsState(
         targetValue = if (isPressed) GameShadowHeight else 0.dp,
         animationSpec = spring(dampingRatio = 0.4f), // Bouncy spring
@@ -167,23 +161,21 @@ fun GamifiedDialogButton(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(50.dp) // Total height reserved
+            .height(50.dp)
             .clickable(
                 interactionSource = interactionSource,
-                indication = null, // No ripple, using custom animation
+                indication = null,
                 onClick = onClick
             )
     ) {
-        // Shadow Layer (Static at bottom)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(44.dp) // Match button height
+                .height(44.dp)
                 .background(GameBlack, RoundedCornerShape(12.dp))
         )
 
-        // Button Layer (Moves when pressed)
         Box(
             modifier = Modifier
                 .offset(y = offsetY)

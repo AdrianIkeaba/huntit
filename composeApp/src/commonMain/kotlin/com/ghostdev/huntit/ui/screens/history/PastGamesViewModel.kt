@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.ghostdev.huntit.data.model.GameChallengeDto
 import com.ghostdev.huntit.data.model.GameParticipantDto
 import com.ghostdev.huntit.data.model.GameRoomDto
-import com.ghostdev.huntit.data.model.GameStatus
 import com.ghostdev.huntit.data.model.RoundSubmissionDto
 import com.ghostdev.huntit.data.repository.LeaderboardRepository
 import io.github.jan.supabase.SupabaseClient

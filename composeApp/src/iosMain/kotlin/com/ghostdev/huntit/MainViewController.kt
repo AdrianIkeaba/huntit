@@ -11,7 +11,6 @@ import com.ghostdev.huntit.di.submissionModule
 import com.ghostdev.huntit.di.viewModelModule
 import com.ghostdev.huntit.utils.LocalAudioPlayer
 import com.ghostdev.huntit.utils.createEnhancedAudioPlayer
-import com.ghostdev.huntit.utils.initializeCrashLogger
 import org.koin.core.context.startKoin
 import platform.Foundation.NSLog
 import platform.Foundation.NSNotificationCenter
@@ -19,11 +18,6 @@ import platform.UIKit.UIApplicationDidEnterBackgroundNotification
 import platform.UIKit.UIApplicationWillEnterForegroundNotification
 
 fun MainViewController() = ComposeUIViewController {
-    // Initialize crash logger first thing before any other code executes
-    // This ensures we catch any early initialization errors
-    NSLog("📱 Initializing Kotlin crash logger")
-    initializeCrashLogger()
-    NSLog("📱 Crash logger initialized successfully")
     
     try {
         startKoin {
@@ -32,25 +26,20 @@ fun MainViewController() = ComposeUIViewController {
                 dataModule, 
                 viewModelModule, 
                 submissionModule
-                // Add any platform-specific modules here if needed in the future
             )
         }
-        NSLog("📱 Koin initialization successful")
     } catch (e: Exception) {
-        NSLog("⚠️ Error during Koin initialization: ${e.message}")
-        throw e // Re-throw to let the crash logger catch it
+        throw e
     }
 
-    // Safely create audio player with error logging
     val audioPlayer = remember { 
         try {
-            NSLog("📱 Creating audio player")
             createEnhancedAudioPlayer().also {
                 NSLog("📱 Audio player created successfully")
             }
         } catch (e: Exception) {
             NSLog("⚠️ Error creating audio player: ${e.message}")
-            throw e // Re-throw to let the crash logger catch it
+            throw e
         }
     }
 

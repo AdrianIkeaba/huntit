@@ -77,7 +77,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 
-// Consistent Game Colors
+
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 
@@ -86,154 +86,100 @@ fun PhotoScreen(
     innerPadding: PaddingValues,
     controller: CameraController = CameraController(),
     viewModel: SubmissionViewModel,
-    challenge: String, // This might be empty, we'll use cached value if so
-    timeRemaining: String, // Used only as fallback
+    challenge: String,
+    timeRemaining: String,
     navigateBack: () -> Unit,
     navigateToResults: () -> Unit
 ) {
-    // Use remember for values that shouldn't trigger recomposition of the entire screen
     val flashOn = remember { mutableStateOf(controller.isFlashOn()) }
     var capturedPhoto by remember { mutableStateOf<ImageBitmap?>(null) }
     
-    // Get cached challenge text and store it in a remembered state to ensure persistence
     val cachedChallenge = viewModel.getCachedChallenge()
     
     // Initialize and persist the challenge text
-    // This state will not be reset when photos are taken or other UI events happen
     var currentChallenge by remember { 
         mutableStateOf(
-            challenge.ifBlank { cachedChallenge.ifBlank { "Find something interesting" } } // Default fallback to prevent "No challenge available"
+            challenge.ifBlank { cachedChallenge.ifBlank { "Find something interesting" } }
         )
     }
-    
-    // Log for debugging
-    println("PhotoScreen recomposed. Challenge: '$challenge', Cached: '$cachedChallenge', Current: '$currentChallenge'")
     
     // If we have a valid challenge from params or cache, ensure it's set
     LaunchedEffect(challenge, cachedChallenge) {
         if (challenge.isNotBlank() && currentChallenge != challenge) {
             currentChallenge = challenge
-            println("Updated currentChallenge from challenge parameter: $challenge")
         } else if (challenge.isBlank() && cachedChallenge.isNotBlank() && currentChallenge != cachedChallenge) {
             currentChallenge = cachedChallenge
-            println("Updated currentChallenge from cached challenge: $cachedChallenge")
         }
     }
-
-    // Collect submission state
+    
     val submissionState by viewModel.submissionState.collectAsState()
     
-    // Get cached time remaining and phase end time
-    val cachedTimeRemaining = viewModel.getCachedTimeRemaining()
-    // Phase end time is passed directly to the function or may be cached elsewhere
     val phaseEndsAtMs = if (challenge.isNotBlank()) viewModel.getCachedPhaseEndsAtMs() else 0L
-    
-    // We'll use a separate component for the timer to prevent full screen recomposition
+
     val timerState = remember { TimerState() }
     
-    // Initialize the timer state - this runs whenever we revisit the screen
-    // using phaseEndsAtMs as the key to trigger recalculation on every visit
     LaunchedEffect(phaseEndsAtMs) {
         if (phaseEndsAtMs > 0) {
-            // We have a valid end time from the server, use it
-            println("Using absolute end time from server: $phaseEndsAtMs")
             timerState.setEndTime(phaseEndsAtMs)
         } else {
             // Fallback to relative time if no absolute end time is available
             val staticTime = when {
                 timeRemaining.isNotBlank() && timeRemaining != "00:00" -> {
-                    println("Using provided relative time: $timeRemaining")
                     timeRemaining
                 }
                 else -> {
                     val cachedTimeRemaining = viewModel.getCachedTimeRemaining()
                     if (cachedTimeRemaining.isNotBlank() && cachedTimeRemaining != "00:00") {
-                        println("Using cached relative time: $cachedTimeRemaining")
                         cachedTimeRemaining
                     } else {
-                        // Fallback to a reasonable default
-                        println("Using default relative time: 01:30")
-                        "01:30"
+                        "Error"
                     }
                 }
             }
             timerState.setInitialTime(staticTime)
         }
         
-        println("PhotoScreen initialized with challenge: $currentChallenge, phaseEndsAtMs: $phaseEndsAtMs")
     }
 
     // Effect to handle state transitions
     LaunchedEffect(submissionState) {
-        println("PhotoScreen - submissionState changed to: $submissionState")
         
         when (submissionState) {
             is SubmissionState.Success, is SubmissionState.Failed, is SubmissionState.Error -> {
-                // Add delay to ensure review data is fully processed before navigation
-                println("PhotoScreen - processing complete, waiting briefly before navigating to results")
-                
-                // First ensure the review data is created and stored
                 try {
-                    // Wait to ensure data is fully processed and stored
                     delay(500)
                     
                     // Verify review data is available before navigation
                     val reviewData = viewModel.getReviewData()
                     if (reviewData != null) {
-                        println("PhotoScreen - review data ready, navigating to results")
                         navigateToResults()
                     } else {
-                        // If still no data, wait a bit longer and try again
-                        println("PhotoScreen - review data not ready yet, waiting longer")
                         delay(500)
                         
-                        // Navigate regardless - the review screen will keep checking for data
-                        println("PhotoScreen - navigating to results after extended wait")
                         navigateToResults()
                     }
                 } catch (e: Exception) {
-                    println("PhotoScreen - error during navigation preparation: ${e.message}")
-                    // Navigate anyway, the review screen can handle missing data
                     navigateToResults()
                 }
             }
             is SubmissionState.Idle -> {
-                // No navigation needed for Idle state
-                println("PhotoScreen - in Idle state")
             }
             is SubmissionState.Capturing -> {
-                // Photo capture in progress
-                println("PhotoScreen - in capturing state")
             }
             is SubmissionState.Processing, is SubmissionState.Uploading, is SubmissionState.Verifying -> {
-                println("PhotoScreen - in processing state: $submissionState")
-                // Processing states - no navigation needed
-            }
-            null -> {
-                // Null state should be avoided, but handle it gracefully if it occurs
-                println("WARNING: PhotoScreen - submissionState is null, this should not happen")
-                // If we somehow get a null state, reset and navigate back to prevent blank screen
-                viewModel.resetState()
-                navigateBack()
             }
         }
     }
 
     // Effect to handle clean up and ensure state is reset when going back
     DisposableEffect(Unit) {
-        println("PhotoScreen entered, setting up DisposableEffect")
-        
-        // Use a mutable variable to track navigation type
         var forwardNavigation = false
         
-        // Set up a state watcher to detect navigation to results early
-        // This ensures we don't reset state when navigating forward
         val stateWatchJob = MainScope().launch {
             viewModel.submissionState.collect { state ->
                 if (state is SubmissionState.Success || 
                     state is SubmissionState.Failed || 
                     state is SubmissionState.Error) {
-                    println("Detected result state ($state), marking for forward navigation")
                     forwardNavigation = true
                 }
             }
@@ -243,132 +189,99 @@ fun PhotoScreen(
             // Cancel the state watch job first
             stateWatchJob.cancel()
             
-            println("PhotoScreen leaving, forwardNavigation flag: $forwardNavigation")
             
             // Check the state again to be double sure
             val finalState = viewModel.submissionState.value
             if (finalState is SubmissionState.Success || 
                 finalState is SubmissionState.Failed || 
                 finalState is SubmissionState.Error) {
-                println("PhotoScreen leaving due to forward navigation to results ($finalState), preserving state")
                 forwardNavigation = true
             }
             
             // If we're not navigating forward, reset the state
             if (!forwardNavigation) {
-                println("PhotoScreen leaving due to back navigation, resetting state")
                 // Use MainScope to ensure the reset happens even if our coroutine is canceled
                 MainScope().launch {
                     try {
                         viewModel.resetState()
-                        println("Successfully reset state on back navigation")
                     } catch (e: Exception) {
-                        println("Error resetting state on back navigation: ${e.message}")
+
                     }
                 }
-            } else {
-                println("Preserved state for forward navigation to results screen")
             }
         }
     }
 
     // Start the timer countdown in a separate effect
-    // Using a more specific key to ensure it runs properly on re-composition
     LaunchedEffect(key1 = "timer_start", key2 = phaseEndsAtMs) {
-        println("Starting timer countdown from LaunchedEffect with phaseEndsAtMs: $phaseEndsAtMs")
         timerState.startCountdown()
     }
     
     // Set up timer expiry callback
     LaunchedEffect(timerState) {
         timerState.setOnExpiredCallback {
-            println("Timer expired callback triggered in PhotoScreen")
-            
-            // Use a dedicated scope for navigation that won't be canceled 
-            // even if the screen composition changes
             val navScope = MainScope()
-            
-                            if (capturedPhoto == null) {
-                    // No photo captured, navigate back after a brief delay
-                    navScope.launch {
+
+            if (capturedPhoto == null) {
+                navScope.launch {
+                    try {
+
+                        // First, reset the state to ensure clean navigation
                         try {
-                            println("Timer expired with no photo - preparing to navigate back")
-                            
-                            // First, reset the state to ensure clean navigation
-                            try {
-                                viewModel.resetState()
-                                println("Successfully reset viewModel state")
-                            } catch (e: Exception) {
-                                println("Failed to reset viewModel state: ${e.message}")
-                            }
-                            
-                            // Small delay to ensure UI updates and state resets properly
-                            delay(300)
-                            
-                            // Then navigate
-                            println("Navigating back to game screen after timer expiry")
-                            navigateBack()
-                            println("Navigation call completed")
-                            
+                            viewModel.resetState()
                         } catch (e: Exception) {
-                            println("Error during timer expiry navigation: ${e.message}")
-                            
-                            // Try one more time after a longer delay
-                            delay(800)
-                            try {
-                                println("Retrying navigation after timer expiry")
-                                // Force cleanup again before retry
-                                viewModel.resetState()
-                                navigateBack()
-                                println("Retry navigation completed")
-                            } catch (e2: Exception) {
-                                println("Failed to navigate after timer expiry: ${e2.message}")
-                            }
+
+                        }
+
+                        // Small delay to ensure UI updates and state resets properly
+                        delay(300)
+
+                        // Then navigate
+                        navigateBack()
+
+                    } catch (e: Exception) {
+                        // Try one more time after a longer delay
+                        delay(800)
+                        try {
+                            // Force cleanup again before retry
+                            viewModel.resetState()
+                            navigateBack()
+                        } catch (e2: Exception) {
+
                         }
                     }
+                }
             } else {
                 // Photo was captured, give a brief grace period to submit
                 navScope.launch {
                     try {
-                        println("Timer expired with photo - giving grace period")
                         // Show time's up message for 2 seconds
-                        delay(2000) 
-                        
+                        delay(2000)
+
                         // If still on this screen and not in the process of submitting, force navigation
                         val currentState = viewModel.submissionState.value
-                        println("After grace period, submission state is: $currentState")
-                        
+
                         if (currentState !is SubmissionState.Processing &&
                             currentState !is SubmissionState.Uploading &&
-                            currentState !is SubmissionState.Verifying) {
-                            println("Timer expired grace period ended - navigating back")
+                            currentState !is SubmissionState.Verifying
+                        ) {
                             viewModel.resetState()
-                            // Ensure we're on the main thread for navigation
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                 navigateBack()
                             }
-                        } else {
-                            println("Not navigating back after timer as submission is in progress: $currentState")
                         }
                     } catch (e: Exception) {
-                        // Catch any exceptions to prevent crashes on timer expiration
-                        println("Error in timer expiration handler: ${e.message}")
-                        // Wait a bit then try again
                         delay(500)
                         try {
                             viewModel.resetState()
                             navigateBack()
                         } catch (e2: Exception) {
-                            println("Failed again to navigate after timer expiry: ${e2.message}")
                         }
                     }
                 }
             }
         }
     }
-    
-    // Log challenge state before rendering PhotoComponent
-    println("Rendering PhotoComponent with challenge: '$currentChallenge', photo null?: ${capturedPhoto == null}")
     
     PhotoComponent(
         innerPadding = innerPadding,
@@ -388,12 +301,10 @@ fun PhotoScreen(
             }
         },
         onCloseClick = {
-            println("Close button clicked - resetting state and navigating back")
             try {
                 // Always reset state when explicitly closing to avoid blank screen
                 viewModel.resetState()
             } catch (e: Exception) {
-                println("Error resetting state on close: ${e.message}")
             }
             navigateBack()
         },
@@ -408,7 +319,6 @@ fun PhotoScreen(
     )
 }
 
-// Create a separate TimerState class to isolate timer updates from the main composition
 @OptIn(ExperimentalTime::class)
 class TimerState {
     // Public StateFlow that can be collected for changes
@@ -454,17 +364,11 @@ class TimerState {
         // Check if the end time is already in the past
         val now = Clock.System.now()
         if (this.phaseEndsAt!! <= now) {
-            // Time has already expired
             _isExpired.value = true
             _timeStateFlow.value = "00:00"
-            println("Timer end time is in the past, marking as expired immediately: $phaseEndsAt vs $now")
             onExpiredCallback?.invoke()
         } else {
-            // Time is still in the future
-            println("Timer end time set to: $phaseEndsAt, remaining: ${(this.phaseEndsAt!!.toEpochMilliseconds() - now.toEpochMilliseconds())/1000.0}s")
             _isExpired.value = false
-            
-            // Calculate initial remaining time
             updateTimeDisplay()
         }
     }
@@ -486,19 +390,12 @@ class TimerState {
                 if (actualMs <= 0L) {
                     _isExpired.value = true
                     _timeStateFlow.value = "00:00"
-                    println("Initial time is zero or negative, marking timer as expired")
                 } else {
-                    // Set end time as current time + duration
                     setEndTime(Clock.System.now().toEpochMilliseconds() + actualMs)
-                    println("Initial time set from string: $timeString (${actualMs}ms)")
                 }
             }
         } catch (e: Exception) {
-            println("Error parsing initial time: $e")
-            // Fallback to a short time (10 seconds) if there's an error
-            // This is better than defaulting to 90 seconds which is too long
             setEndTime(Clock.System.now().toEpochMilliseconds() + 10_000L)
-            println("Error parsing time, using 10s fallback")
         }
     }
     
@@ -527,17 +424,15 @@ class TimerState {
     fun startCountdown() {
         // Only start if not already running
         if (isRunning) {
-            println("Timer already running, not starting again")
             return
         }
         
         val phaseEndsAt = phaseEndsAt
         if (phaseEndsAt == null) {
-            println("Timer has no end time set, using default 90 seconds")
             setEndTime(Clock.System.now().toEpochMilliseconds() + 90_000L)
         }
         
-        println("Starting timer countdown to ${this.phaseEndsAt}")
+
         isRunning = true
         
         // Cancel any existing job
@@ -546,21 +441,19 @@ class TimerState {
         // Use MainScope for UI updates
         timerJob = MainScope().launch {
             try {
-                println("Timer countdown launched")
+
                 
                 while (isActive) {
-                    // Update the time display
+
                     updateTimeDisplay()
                     
-                    // Check if time has reached zero
+
                     val now = Clock.System.now()
                     val adjustedNow = kotlin.time.Instant.fromEpochMilliseconds(now.toEpochMilliseconds() - localTimeOffsetMs)
                     val remaining = this@TimerState.phaseEndsAt?.minus(adjustedNow)?.inWholeMilliseconds ?: 0L
                     
                                             if (remaining <= 0) {
-                            // Check if we need to trigger the expired callback
                             if (!_isExpired.value) {
-                                println("Timer expired - triggering callback")
                                 // First set the expired flag
                                 _isExpired.value = true
                                 // Then ensure time display shows 00:00
@@ -583,7 +476,6 @@ class TimerState {
                         }
                 }
             } catch (e: Exception) {
-                println("Timer error: ${e.message}")
             } finally {
                 isRunning = false
             }
@@ -616,7 +508,7 @@ private fun PhotoComponent(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // Show either camera view or captured photo
+
         if (capturedPhoto == null) {
             CameraView(controller = controller)
         } else {
@@ -822,7 +714,7 @@ private fun HeaderComponent(
                 )
             }
             
-            // Flash button (only shown when camera is active)
+
             if (showFlashButton) {
                 Box(
                     modifier = Modifier
@@ -840,7 +732,7 @@ private fun HeaderComponent(
                     )
                 }
             } else {
-                // Empty box for layout consistency
+
                 Spacer(modifier = Modifier.size(40.dp))
             }
         }
@@ -857,12 +749,7 @@ private fun HeaderComponent(
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Store title in a variable for the Text component
-                // Important: Don't use ifEmpty here, as we want to ensure the title is always displayed
                 val displayTitle = if (title.isNotBlank()) title else "Find something interesting"
-                
-                // Log every time we display a title
-                println("HeaderComponent displaying title: '$displayTitle' (original: '$title')")
                 
                 Text(
                     text = displayTitle,
@@ -897,13 +784,10 @@ private fun HeaderComponent(
     }
 }
 
-// Separate composable for the timer to prevent recomposition of parent components
+
 @Composable
 private fun TimerText(timerState: TimerState) {
-    // Collect the timer state directly as a state (more reliable than LaunchedEffect with mutableState)
     val timeText by timerState.timeStateFlow.collectAsState()
-    
-    // Use directly the collected time value
     Text(
         text = timeText,
         style = TextStyle(
@@ -946,7 +830,7 @@ private fun ShutterComponent(
             )
         }
 
-        // Instruction text
+
         Text(
             text = "Position your subject in the frame",
             style = TextStyle(
@@ -965,10 +849,10 @@ private fun PhotoActionsSection(
     onTryAgainClick: () -> Unit,
     isEnabled: Boolean = true
 ) {
-    // Use the dedicated UsePhotoSection component from the imported file
+
     com.ghostdev.huntit.ui.screens.game.UsePhotoSection(
         modifier = modifier,
-        onUsePhotoClick = if (isEnabled) onUsePhotoClick else { {} }, // No-op if disabled
+        onUsePhotoClick = if (isEnabled) onUsePhotoClick else { {} },
         onTryAgainClick = onTryAgainClick,
         isEnabled = isEnabled
     )

@@ -73,16 +73,10 @@ fun AnchoredBottomSheet(
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
 
-    // Keep track of sheet state
     var sheetState by remember { mutableStateOf(initialValue) }
-
-    // Keep track of sheet height
     var sheetHeight by remember { mutableStateOf(0) }
-
-    // Calculate visible height based on state
     var visibleHeight by remember { mutableStateOf(peekHeight) }
 
-    // Calculate background scrim alpha based on expansion progress
     val maxScrimAlpha = 0.2f
     val scrimAlpha = remember(visibleHeight, sheetHeight, expandedHeight, sheetState) {
         with(density) {
@@ -90,7 +84,6 @@ fun AnchoredBottomSheet(
             val peekHeightPx = peekHeight.toPx()
 
             if (expandedHeight != null) {
-                // Calculate progress from collapsed to expanded (0f to 1f)
                 val expandedHeightPx = expandedHeight.toPx()
                 val progressRange = expandedHeightPx - peekHeightPx
                 val currentProgress = visibleHeightPx - peekHeightPx
@@ -102,7 +95,6 @@ fun AnchoredBottomSheet(
                     0f
                 }
             } else if (sheetHeight > 0) {
-                // Fallback if expandedHeight is not specified
                 val progressRange = sheetHeight.toFloat() - peekHeightPx
                 val currentProgress = visibleHeightPx - peekHeightPx
 
@@ -113,23 +105,19 @@ fun AnchoredBottomSheet(
                     0f
                 }
             } else {
-                // Default when we don't have enough information yet
                 if (sheetState == SheetValue.Expanded) maxScrimAlpha else 0f
             }
         }
     }
 
-    // Choose animation based on direction for the most natural feel
     fun getAnimationSpec(isExpanding: Boolean): AnimationSpec<Float> {
         return if (isExpanding) {
-            // When expanding, use spring for a slight bounce at the end
             spring(
                 dampingRatio = Spring.DampingRatioMediumBouncy,
                 stiffness = Spring.StiffnessMediumLow,
                 visibilityThreshold = 0.5f
             )
         } else {
-            // When collapsing, use tween with easing for a smooth finish
             tween(
                 durationMillis = 300,
                 easing = FastOutSlowInEasing
@@ -137,7 +125,6 @@ fun AnchoredBottomSheet(
         }
     }
 
-    // Whenever state changes, update visibleHeight and notify caller
     fun updateSheetState(newState: SheetValue) {
         if (sheetState != newState) {
             val targetHeight = when (newState) {
@@ -145,9 +132,7 @@ fun AnchoredBottomSheet(
                 SheetValue.Expanded -> expandedHeight ?: with(density) { sheetHeight.toDp() }
             }
 
-            // Animate the height change
             scope.launch {
-                // Check if we're expanding or collapsing
                 val isExpanding = targetHeight > visibleHeight
 
                 // Animate from current height to target height
@@ -173,9 +158,7 @@ fun AnchoredBottomSheet(
 
     // Detect if user drags up enough to expand
     fun shouldExpandOnDrag(dragAmount: Float, currentHeight: Dp): Boolean {
-        // If already near expanded or strong upward drag, expand
         if (sheetState == SheetValue.Collapsed) {
-            // Detect either a strong upward flick or dragging beyond 25% of the way up
             val nearExpanded = expandedHeight?.let { expanded ->
                 val quarterWay = peekHeight + ((expanded - peekHeight) * 0.25f)
                 currentHeight > quarterWay
@@ -231,7 +214,6 @@ fun AnchoredBottomSheet(
                         )
                     }
                     .onSizeChanged { size ->
-                        // Keep track of the full content height
                         if (sheetHeight < size.height) {
                             sheetHeight = size.height
                         }

@@ -52,13 +52,12 @@ import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import com.ghostdev.huntit.utils.toUserFriendlyError
 
-// Consistent Game Colors (same as other screens)
+
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
 private val GameShadowHeight = 4.dp
 
-// Helper function to format seconds to display format
 private fun formatDurationSeconds(seconds: Int): String {
     return when {
         seconds < 60 -> "${seconds}s"

@@ -123,9 +123,7 @@ class GameViewModel(
 ) : ViewModel() {
 
     companion object {
-        // Buffer time to account for network latency when receiving phase updates
-        // This compensates for the delay between server setting phase_ends_at and client receiving it
-        private const val NETWORK_LATENCY_BUFFER_MS = 2000L // 2 seconds buffer
+        private const val NETWORK_LATENCY_BUFFER_MS = 1000L // 1 second buffer
     }
 
     private val _state = MutableStateFlow(GameUiState())
@@ -232,14 +230,10 @@ class GameViewModel(
 
             // Subscribe to real-time updates
             subscribeToRealTimeUpdates(roomId)
-
-            // Mark loading as complete and set initialization flag
+            
             _state.update { it.copy(isLoading = false) }
             
-            // Set the initialization flag AFTER all data is loaded
-            // This prevents the winners navigation check from running prematurely
             hasCompletedInitialization = true
-            println("Game initialization complete - safe to check game status now")
 
         } catch (e: Exception) {
             _state.update {
@@ -373,25 +367,22 @@ class GameViewModel(
             val serverTime = serverTimeResult.getOrNull() ?: Clock.System.now()
 
             // Calculate initial remaining time with network latency buffer compensation
-            // The buffer accounts for the delay between server setting phase_ends_at 
-            // and the client receiving & processing the update
+            // The buffer accounts for the delay between server setting phase_ends_at
             val remaining = phaseEndsAt - serverTime
             val remainingMs = (remaining.inWholeMilliseconds + NETWORK_LATENCY_BUFFER_MS).coerceAtLeast(0L)
-
-            // Store the local time offset (difference between local clock and server clock)
+            
             localTimeOffsetMs =
                 Clock.System.now().toEpochMilliseconds() - serverTime.toEpochMilliseconds()
 
             // Update last sync time
             lastTimerSyncInstant = Clock.System.now()
             
-            println("Timer sync: phaseEndsAt=$phaseEndsAt, serverTime=$serverTime, remaining=${remainingMs}ms (includes ${NETWORK_LATENCY_BUFFER_MS}ms buffer)")
+
 
             // Update the state with initial time
             _state.update { it.copy(timeRemainingMs = remainingMs) }
 
         } catch (e: Exception) {
-            println("Timer sync error: ${e.message}")
             // If sync fails, use local time as fallback with buffer
             val remaining = phaseEndsAt - Clock.System.now()
             val remainingMs = (remaining.inWholeMilliseconds + NETWORK_LATENCY_BUFFER_MS).coerceAtLeast(0L)
@@ -401,10 +392,9 @@ class GameViewModel(
 
     @OptIn(ExperimentalTime::class)
     private fun startSmoothCountdown(phaseEndsAt: Instant) {
-        timerJob?.cancel() // Cancel any existing timer job
+        timerJob?.cancel()
         
         // Calculate adjusted phase end time with buffer compensation
-        // This ensures the timer shows the full duration expected by the user
         val adjustedPhaseEndsAt = Instant.fromEpochMilliseconds(
             phaseEndsAt.toEpochMilliseconds() + NETWORK_LATENCY_BUFFER_MS
         )
@@ -414,7 +404,6 @@ class GameViewModel(
             
             while (isActive) {
                 try {
-                    // Calculate time remaining using local clock with offset adjustment
                     val now = Clock.System.now()
                     val adjustedNow =
                         Instant.fromEpochMilliseconds(now.toEpochMilliseconds() - localTimeOffsetMs)
@@ -427,12 +416,9 @@ class GameViewModel(
                         // Only try to advance phase once when timer first reaches zero
                         if (!timeReachedZero) {
                             timeReachedZero = true
-                            println("Timer reached zero, checking if phase needs to advance")
                             advanceGamePhase()
                             
-                            // Continue running the timer job in case we need to wait for server sync
-                            // but slow the polling rate to avoid unnecessary load
-                            delay(5000) // Check every 5 seconds after timer reaches zero
+                            delay(5000)
                             
                             // Also check if game state has advanced on server
                             val roomId = currentRoomId ?: break
@@ -451,20 +437,17 @@ class GameViewModel(
                                 }
                             }
                         } else {
-                            // Keep checking for phase changes periodically but at a reduced rate
-                            delay(5000) // Check every 5 seconds after timer reaches zero
+                            delay(5000)
                         }
                     } else {
-                        // Reset the zero flag if timer goes back above zero
                         if (timeReachedZero && remainingMs > 0) {
                             timeReachedZero = false
                         }
                         
                         _state.update { it.copy(timeRemainingMs = remainingMs) }
-                        delay(1000) // Update every second
+                        delay(1000)
                     }
                 } catch (e: Exception) {
-                    println("Timer error: ${e.message}")
                     delay(1000)
                 }
             }
@@ -475,7 +458,7 @@ class GameViewModel(
         // Subscribe to game room updates
         gameRoomSubscriptionJob = viewModelScope.launch {
             gameRepository.subscribeToGameRoom(roomId)
-                .catch { e -> println("Game room subscription error: ${e.message}") }
+                .catch { e -> }
                 .collect { gameRoom ->
                     handleGameRoomUpdate(gameRoom)
                 }
@@ -484,7 +467,7 @@ class GameViewModel(
         // Subscribe to participants updates
         participantsSubscriptionJob = viewModelScope.launch {
             gameRepository.subscribeToParticipants(roomId)
-                .catch { e -> println("Participants subscription error: ${e.message}") }
+                .catch { e -> }
                 .collect { participants ->
                     handleParticipantsUpdate(participants)
                 }
@@ -493,7 +476,7 @@ class GameViewModel(
         // Subscribe to submissions updates
         submissionsSubscriptionJob = viewModelScope.launch {
             gameRepository.subscribeToSubmissions(roomId)
-                .catch { e -> println("Submissions subscription error: ${e.message}") }
+                .catch { e -> }
                 .collect { submissions ->
                     handleSubmissionsUpdate(submissions)
                 }
@@ -519,17 +502,12 @@ class GameViewModel(
         }
 
         // Only check game finished status after initial load is complete
-        // This prevents navigation to winners screen right after game start
-        // due to a race condition between initialization and real-time updates
         if (hasCompletedInitialization) {
             // Check if game is finished
             if (gameRoom.status == GameStatus.FINISHED || gameRoom.currentPhase == GamePhase.FINISHED) {
-                println("Game detected as finished, navigating to winners screen")
                 _state.update { it.copy(shouldNavigateToWinners = true) }
                 return
             }
-        } else {
-            println("Skipping winners navigation check during initialization")
         }
 
         // If phase changed, handle the transition
@@ -542,7 +520,6 @@ class GameViewModel(
             }
         } else if (gameRoom.phaseEndsAt != _state.value.phaseEndsAt) {
             // Phase end time changed but phase/round didn't - just restart the timer
-            // without resetting the server sync time
             if (gameRoom.phaseEndsAt != null) {
                 startTimer(gameRoom.phaseEndsAt)
             }
@@ -671,7 +648,7 @@ class GameViewModel(
      * This is more aggressive than just handleGameRoomUpdate and ensures all data is fresh
      */
     private suspend fun forceRefreshAllGameData(roomId: String) {
-        println("Force refreshing ALL game data including leaderboard and scores")
+
         
         try {
             // 1. Get fresh game room data first
@@ -679,17 +656,17 @@ class GameViewModel(
             if (gameRoomResult.isSuccess) {
                 val freshGameRoom = gameRoomResult.getOrNull()
                 if (freshGameRoom != null) {
-                    println("Got fresh game room data - round: ${freshGameRoom.currentRound}, phase: ${freshGameRoom.currentPhase}")
+
                     
                     // 2. Update game room state first
                     handleGameRoomUpdate(freshGameRoom)
                     
                     // 3. Force refresh participants data (leaderboard and scores)
-                    println("Force refreshing participants and scores")
+
                     val participantsResult = gameRepository.getParticipants(roomId)
                     if (participantsResult.isSuccess) {
                         val participants = participantsResult.getOrNull() ?: emptyList()
-                        println("Got ${participants.size} participants with updated scores")
+
                         
                         // Map to leaderboard and update state
                         val leaderboard = mapParticipantsToLeaderboard(participants)
@@ -699,12 +676,7 @@ class GameViewModel(
                             )
                         }
                         
-                        // Print scores for debugging
-                        leaderboard.forEach { entry ->
-                            println("Participant: ${entry.participant.name}, Score: ${entry.points}")
-                        }
-                    } else {
-                        println("Failed to refresh participants: ${participantsResult.exceptionOrNull()?.message}")
+
                     }
                     
                     // 4. Refresh user submissions
@@ -723,15 +695,10 @@ class GameViewModel(
                         startSmoothCountdown(phaseEndsAt)
                     }
                     
-                    println("Completed full game data refresh")
-                } else {
-                    println("Failed to refresh - game room data is null")
+
                 }
-            } else {
-                println("Failed to refresh game data: ${gameRoomResult.exceptionOrNull()?.message}")
             }
         } catch (e: Exception) {
-            println("Exception during game data refresh: ${e.message}")
         }
     }
 
@@ -747,14 +714,13 @@ class GameViewModel(
                 // Get the current room ID
                 val roomId = currentRoomId ?: return@launch
                 
-                println("App returned to foreground - Performing complete data refresh...")
+
                 
                 // Use our new method to force refresh ALL game data
                 forceRefreshAllGameData(roomId)
                 
                 // If the timer is at 0:00, check if we need to force an advance
                 if (_state.value.timeRemainingMs <= 0 && _state.value.phaseEndsAt == null) {
-                    println("Timer at zero after refresh, attempting to advance game phase")
                     advanceGamePhase()
                     
                     // Wait briefly and refresh again to catch the change
@@ -764,7 +730,6 @@ class GameViewModel(
             }
         } else {
             // App went to background
-            println("App went to background - saving current state")
             // Record the time we went to background to improve syncing when we return
             viewModelScope.launch {
                 // Nothing to do for now, but in the future we could suspend subscriptions
@@ -784,7 +749,6 @@ class GameViewModel(
         // Reset initialization flag when leaving screen
         // This ensures proper initialization check when returning
         hasCompletedInitialization = false
-        println("Reset game initialization state on screen exit")
     }
 
     /**
@@ -793,14 +757,13 @@ class GameViewModel(
      */
     @OptIn(ExperimentalTime::class)
     fun handleUserReturnedToScreen() {
-        println("User returned to GameScreen - performing full data refresh")
+
         
         viewModelScope.launch {
             try {
                 // Get the current room ID
                 val roomId = currentRoomId
                 if (roomId == null) {
-                    println("User returned to screen but roomId is null")
                     return@launch
                 }
                 
@@ -809,7 +772,6 @@ class GameViewModel(
                 
                 // If timer is at zero and there's no phase end time, might be stuck between phases
                 if (_state.value.timeRemainingMs <= 0 && _state.value.phaseEndsAt == null) {
-                    println("Timer at zero and no phase end time - may be stuck between phases")
                     
                     // Try to advance the game
                     advanceGamePhase()
@@ -821,9 +783,7 @@ class GameViewModel(
                 
                 // Set initialization flag after returning to screen
                 hasCompletedInitialization = true
-                println("Game initialization complete after returning to screen")
             } catch (e: Exception) {
-                println("Exception in handleUserReturnedToScreen: ${e.message}")
             }
         }
     }
@@ -839,7 +799,6 @@ class GameViewModel(
         viewModelScope.launch {
             val result = gameRepository.advanceGamePhase(roomId)
             if (result.isFailure) {
-                println("Failed to advance phase: ${result.exceptionOrNull()?.message}")
             }
         }
     }
@@ -848,7 +807,7 @@ class GameViewModel(
      * Navigate to photo screen to take a photo
      */
     fun onSubmitClick() {
-        println("onSubmitClick called - canSubmit: ${_state.value.canSubmit}, phase: ${_state.value.currentPhase}, hasSubmitted: ${_state.value.hasSubmittedCurrentRound}")
+
         
         // Force recalculate canSubmit to ensure it's current
         val currentPhase = _state.value.currentPhase
@@ -857,19 +816,16 @@ class GameViewModel(
         
         // Update state if canSubmit is incorrect
         if (_state.value.canSubmit != calculatedCanSubmit) {
-            println("Submit warning: canSubmit was inconsistent, updating from ${_state.value.canSubmit} to $calculatedCanSubmit")
             _state.update { it.copy(canSubmit = calculatedCanSubmit) }
         }
         
         if (!calculatedCanSubmit) {
-            println("Submit blocked: canSubmit is false (phase: $currentPhase, hasSubmitted: $hasSubmittedCurrentRound)")
             return
         }
         
         // Get current game state info
         val roomId = currentRoomId
         if (roomId == null) {
-            println("Submit blocked: roomId is null")
             return
         }
         
@@ -880,7 +836,7 @@ class GameViewModel(
                 shouldNavigateToPhoto = true
             )
         }
-        println("GameViewModel: Set shouldNavigateToPhoto = true")
+
         
         val userId = _state.value.currentUserId
         val currentRound = _state.value.currentRound
@@ -892,7 +848,7 @@ class GameViewModel(
         // Use the actual time remaining without enforcing a minimum
         val timeFormatted = formatTimeRemaining(timeRemainingMs)
         
-        println("Initializing submission with actual time: $timeFormatted (${timeRemainingMs}ms)")
+
         
         // Initialize the submission ViewModel - we'll do this through dependency injection in the UI layer
         try {
@@ -909,7 +865,6 @@ class GameViewModel(
                 phaseEndsAtMs = phaseEndsAt
             )
         } catch (e: Exception) {
-            println("Failed to initialize SubmissionViewModel: ${e.message}")
         }
         
         // Update state
@@ -1024,7 +979,6 @@ class GameViewModel(
                         }
                         
                         // Force refresh participants data to update scores immediately after successful submission
-                        println("Submission successful - refreshing scores")
                         delay(500) // Give server time to process
                         loadParticipants(roomId, userId)
                         
@@ -1091,7 +1045,6 @@ class GameViewModel(
                 }
                 
                 // Force refresh participants data to update scores after skip
-                println("Round skipped - refreshing scores")
                 delay(500) // Give server time to process
                 loadParticipants(roomId, userId)
                 
@@ -1176,7 +1129,6 @@ class GameViewModel(
         
         // Reset initialization flag
         hasCompletedInitialization = false
-        println("Reset game initialization state in onCleared")
 
         viewModelScope.launch {
             gameRepository.unsubscribeFromGame()

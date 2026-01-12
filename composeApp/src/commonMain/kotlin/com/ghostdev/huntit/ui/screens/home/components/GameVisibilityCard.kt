@@ -45,11 +45,8 @@ import huntit.composeapp.generated.resources.private
 import huntit.composeapp.generated.resources.public
 import org.jetbrains.compose.resources.painterResource
 
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
-private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
-private val GameShadowHeight = 4.dp
 
 @Composable
 fun GameVisibilityCard(
@@ -57,18 +54,15 @@ fun GameVisibilityCard(
     onVisibilityChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Create shadow effect consistent with other cards
     BaseCardComponent(
         modifier = modifier.fillMaxWidth()
     ) {
-        // Content Layer
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .wrapContentHeight()
                 .padding(16.dp)
         ) {
-            // Title with icon for better visual appeal
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -113,7 +107,6 @@ fun GameVisibilityCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Options now use 3D style consistent with the game's UI
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -161,8 +154,7 @@ fun VisibilityOption(
         animationSpec = spring(dampingRatio = 0.4f),
         label = "OptionOffset"
     )
-    
-    // Box with shadow for 3D effect
+
     Box(modifier = modifier.height(110.dp)) {
         // Shadow Layer
         Box(
@@ -202,11 +194,9 @@ fun VisibilityOption(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // Add an enhanced icon to help distinguish the options
                 Box(
                     modifier = Modifier.size(32.dp)
                 ) {
-                    // Shadow
                     if (isSelected) {
                         Box(
                             modifier = Modifier
@@ -216,8 +206,7 @@ fun VisibilityOption(
                                 .background(GameBlack.copy(alpha = 0.3f), CircleShape)
                         )
                     }
-                    
-                    // Icon circle
+
                     Box(
                         modifier = Modifier
                             .size(32.dp)
@@ -264,8 +253,7 @@ fun VisibilityOption(
                     ),
                     textAlign = TextAlign.Center
                 )
-                
-                // Add a checkmark for selected option
+
                 if (isSelected) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Box(

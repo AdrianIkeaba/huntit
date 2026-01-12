@@ -33,10 +33,8 @@ import com.ghostdev.huntit.ui.theme.patrickHandFont
 import com.ghostdev.huntit.ui.theme.patrickHandScFont
 import com.ghostdev.huntit.ui.theme.testSohneFont
 
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
-private val GameGrey = Color(0xFFE5E5E5)
 
 enum class MaxPlayersOption { NO_LIMIT, SET_LIMIT }
 
@@ -50,7 +48,6 @@ fun MaxPlayersCard(
     var limitText by remember { mutableStateOf(maxPlayers?.takeIf { it > 0 }?.toString() ?: "") }
     val focusRequester = remember { FocusRequester() }
 
-    // Initialize from props if needed
     LaunchedEffect(maxPlayers) {
         selected = if (maxPlayers == null) MaxPlayersOption.NO_LIMIT else MaxPlayersOption.SET_LIMIT
         limitText = maxPlayers?.takeIf { it > 0 }?.toString() ?: ""
@@ -69,13 +66,12 @@ fun MaxPlayersCard(
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Title row with 3D effect
+            // Title row
             Row(
                 modifier = Modifier.wrapContentSize(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Icon with circular background
                 Box(
                     modifier = Modifier
                         .size(24.dp)
@@ -111,7 +107,6 @@ fun MaxPlayersCard(
                 }
             )
 
-            // Set limit option with input field
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -125,7 +120,6 @@ fun MaxPlayersCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Radio button with bouncy animation
                 GamifiedRadioButton(
                     isSelected = selected == MaxPlayersOption.SET_LIMIT
                 )
@@ -139,14 +133,13 @@ fun MaxPlayersCard(
                     )
                 )
 
-                // Input field with 3D effect
                 Box(
                     modifier = Modifier
                         .height(38.dp)
                         .width(54.dp)
-                        .offset(y = 2.dp) // 3D shadow effect
+                        .offset(y = 2.dp)
                         .background(GameBlack.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                        .offset(y = -2.dp) // Move content back
+                        .offset(y = (-2).dp)
                         .background(GameWhite, RoundedCornerShape(12.dp))
                         .border(
                             1.5.dp,
@@ -252,14 +245,12 @@ fun GamifiedRadioOption(
 fun GamifiedRadioButton(
     isSelected: Boolean
 ) {
-    // Bouncy animation for selection
     val scale by animateFloatAsState(
         targetValue = if (isSelected) 1.1f else 1f,
         animationSpec = spring(dampingRatio = 0.5f),
         label = "RadioButtonScale"
     )
 
-    // Outer circle with border
     Box(
         modifier = Modifier
             .size(22.dp)

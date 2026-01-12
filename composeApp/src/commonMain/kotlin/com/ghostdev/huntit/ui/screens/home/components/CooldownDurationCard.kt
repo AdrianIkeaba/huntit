@@ -33,7 +33,6 @@ import com.ghostdev.huntit.ui.theme.testSohneFont
 import huntit.composeapp.generated.resources.add
 import huntit.composeapp.generated.resources.minus
 
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
@@ -57,13 +56,11 @@ fun CooldownDurationCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Title row with 3D effect
             Row(
                 modifier = Modifier.wrapContentSize(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Icon with circular background
                 Box(
                     modifier = Modifier
                         .size(24.dp)
@@ -125,9 +122,9 @@ fun CooldownDurationCard(
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp)
-                        .offset(y = GameShadowHeight) // Offset for 3D effect
+                        .offset(y = GameShadowHeight)
                         .background(GameBlack, RoundedCornerShape(16.dp))
-                        .offset(y = -GameShadowHeight) // Offset back for content
+                        .offset(y = -GameShadowHeight)
                         .background(GameWhite, RoundedCornerShape(16.dp))
                         .border(1.5.dp, GameBlack, RoundedCornerShape(16.dp))
                 ) {
@@ -144,7 +141,6 @@ fun CooldownDurationCard(
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                // Plus button (increment by 10 seconds)
                 CooldownControlButton(
                     control = 2,
                     enabled = cooldownSeconds < 90,
@@ -164,14 +160,12 @@ private fun CooldownControlButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Animated scale effect
     val scale by animateFloatAsState(
         targetValue = if (isPressed && enabled) 0.9f else 1f,
         animationSpec = spring(dampingRatio = 0.4f),
         label = "ButtonScale"
     )
 
-    // Offset for 3D effect
     val offsetY by animateDpAsState(
         targetValue = if (isPressed && enabled) GameShadowHeight else 0.dp,
         animationSpec = spring(dampingRatio = 0.4f),
@@ -183,7 +177,6 @@ private fun CooldownControlButton(
             .size(48.dp)
             .scale(scale)
     ) {
-        // Shadow layer (static at bottom)
         Box(
             modifier = Modifier
                 .size(48.dp)
@@ -191,7 +184,6 @@ private fun CooldownControlButton(
                 .background(GameBlack)
         )
 
-        // Content layer (moves when pressed)
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier

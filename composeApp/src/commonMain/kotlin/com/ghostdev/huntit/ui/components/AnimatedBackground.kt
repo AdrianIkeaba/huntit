@@ -26,7 +26,6 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
-// Fun, game-like shapes
 private enum class DoodleType { Circle, Squircle, Donut, Star, Triangle, Capsule, Cross }
 
 private data class Doodle(
@@ -38,7 +37,6 @@ private data class Doodle(
     val shadowColor: Color,
     val amplitudeDp: Float,
     val phase: Float,
-    // CHANGED: Speed is now an Integer multiplier (e.g. -1, 2) to ensure seamless loops
     val speedMultiplier: Int,
     val initialRotation: Float
 )
@@ -52,7 +50,6 @@ fun AnimatedBackground(
 ) {
     val density = LocalDensity.current
 
-    // "Popping" Candy Color Palette
     val palette = remember {
         listOf(
             Color(0xFFFF6B6B), // Coral Red
@@ -121,11 +118,8 @@ fun AnimatedBackground(
         list
     }
 
-    // Single InfiniteTransition for both animations to keep them synced and efficient
     val infiniteTransition = rememberInfiniteTransition(label = "bg_anim")
 
-    // 1. Bobbing Animation (0 -> 2PI)
-    // Uses Linear easing on the angle so the Sin calculation produces perfect harmonic motion
     val animTime by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = (2f * PI).toFloat(),
@@ -136,10 +130,6 @@ fun AnimatedBackground(
         label = "floating_time"
     )
 
-    // 2. Rotation Animation (0 -> 360)
-    // This is the key fix: It animates exactly one full circle.
-    // Because each item multiplies this by an integer, every item ends at exactly 360*N degrees
-    // which effectively equals 0 degrees, creating a seamless loop.
     val rotationAnim by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,

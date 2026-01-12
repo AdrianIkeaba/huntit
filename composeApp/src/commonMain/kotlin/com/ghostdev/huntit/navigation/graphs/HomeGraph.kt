@@ -27,8 +27,7 @@ fun NavGraphBuilder.homeGraph(
                         launchSingleTop = true
                     }
                 },
-                navigateToLobby = { roomCode ->
-                    // Navigate to the lobby after storing the room code
+                navigateToLobby = { _ ->
                     navController.navigate(NavDestinations.LobbyGraph.Lobby) {
                         launchSingleTop = true
                         popUpTo(NavDestinations.HomeGraph.Home) {
@@ -61,8 +60,7 @@ fun NavGraphBuilder.homeGraph(
                 navigateBack = {
                     navController.popBackStack()
                 },
-                navigateToLobby = { roomCode ->
-                    // Navigate to the lobby after storing the room code
+                navigateToLobby = { _ ->
                     navController.navigate(NavDestinations.LobbyGraph.Lobby) {
                         launchSingleTop = true
                         popUpTo(NavDestinations.HomeGraph.Home) {
@@ -88,7 +86,7 @@ fun NavGraphBuilder.homeGraph(
                 navigateBack = {
                     navController.popBackStack()
                 },
-                navigateToLobby = { roomCode ->
+                navigateToLobby = { _ ->
                     navController.navigate(NavDestinations.LobbyGraph.Lobby) {
                         launchSingleTop = true
                         popUpTo(NavDestinations.HomeGraph.Home) {

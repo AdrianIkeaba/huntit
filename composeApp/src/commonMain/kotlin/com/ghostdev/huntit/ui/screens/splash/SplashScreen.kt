@@ -41,7 +41,6 @@ fun SplashScreen(
 
                 // Returning users skip directly to sign-in
                 SplashDestination.SignIn -> {
-                    println("DEBUG: Navigating directly to SignIn screen")
                     // Now we have a direct navigation function for the SignIn destination
                     navigateToSignIn()
                 }

@@ -39,7 +39,6 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 import com.ghostdev.huntit.utils.toUserFriendlyError
 
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameInputBg = Color(0xFFF7F7F7)
@@ -55,14 +54,12 @@ fun UserNameScreen(
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
-            // Check if it's a validation error (these are already user-friendly)
             val isValidationError = it.contains("Please enter") || 
                                    it.contains("Name must be") ||
                                    it.contains("Name is too long")
-                                   
-            // Only convert technical errors to user-friendly message
+
             val displayError = if (isValidationError) {
-                it // Use validation error as-is
+                it
             } else {
                 it.toUserFriendlyError("Something went wrong while saving your username.")
             }
@@ -126,19 +123,17 @@ private fun UserNameComponent(
                         )
                     )
                 }
-                // Centered Content
+
                 Column(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // 3D Card
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .align(Alignment.CenterHorizontally)
                             .height(IntrinsicSize.Min)
                     ) {
-                        // Shadow Layer
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -206,9 +201,6 @@ private fun UserNameComponent(
     }
 }
 
-// ------------------------------------------------------------
-// SHARED GAMIFIED COMPONENTS
-// ------------------------------------------------------------
 
 @Composable
 private fun GameTextField(

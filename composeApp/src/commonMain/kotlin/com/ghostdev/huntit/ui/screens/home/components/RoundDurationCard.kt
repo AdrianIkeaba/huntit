@@ -32,26 +32,6 @@ import com.ghostdev.huntit.ui.theme.patrickHandScFont
 import com.ghostdev.huntit.ui.theme.testSohneFont
 import com.ghostdev.huntit.data.model.RoundDuration
 
-// For backwards compatibility with GameSettingsScreen
-@Composable
-fun DurationOptionButton(
-    modifier: Modifier = Modifier,
-    title: String,
-    subtitle: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    // Just delegate to the new implementation
-    GameDurationButton(
-        modifier = modifier,
-        title = title,
-        subtitle = subtitle,
-        selected = selected,
-        onClick = onClick
-    )
-}
-
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
@@ -154,14 +134,12 @@ fun GameDurationButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Animated scale effect for interactive feedback
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.95f else 1f,
         animationSpec = spring(dampingRatio = 0.4f),
         label = "ButtonScale"
     )
 
-    // Offset for 3D button effect
     val offsetY by animateDpAsState(
         targetValue = if (isPressed) GameShadowHeight else 0.dp,
         animationSpec = spring(dampingRatio = 0.4f),

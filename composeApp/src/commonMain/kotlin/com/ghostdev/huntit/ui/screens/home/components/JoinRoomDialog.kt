@@ -62,12 +62,10 @@ fun JoinRoomDialog(
 ) {
     val state by viewModel.state.collectAsState()
 
-    // Clear any errors when the dialog is shown
     LaunchedEffect(Unit) {
         viewModel.clearError()
     }
 
-    // Handle successful join
     LaunchedEffect(state.joinSuccess) {
         if (state.joinSuccess) {
             viewModel.resetJoinSuccess()
@@ -75,7 +73,6 @@ fun JoinRoomDialog(
         }
     }
 
-    // Reset state when dialog is dismissed
     DisposableEffect(Unit) {
         onDispose {
             viewModel.resetState()
@@ -83,9 +80,7 @@ fun JoinRoomDialog(
     }
 
     Dialog(onDismissRequest = onDismiss) {
-        // Dialog Box with 3D effect
         Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            // Shadow Layer (bottom part)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -94,7 +89,6 @@ fun JoinRoomDialog(
                     .background(GameBlack, RoundedCornerShape(20.dp))
             )
 
-            // Main Content Layer (top part)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -249,7 +243,6 @@ fun DialogButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val audioPlayer = LocalAudioPlayer.current
 
-    // Animate the vertical offset (pushing down)
     val offsetY by animateDpAsState(
         targetValue = if (isPressed) GameShadowHeight else 0.dp,
         animationSpec = spring(dampingRatio = 0.4f),
@@ -271,7 +264,6 @@ fun DialogButton(
                 }
             )
     ) {
-        // Shadow Layer (Static at bottom)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -280,7 +272,6 @@ fun DialogButton(
                 .background(GameBlack, RoundedCornerShape(16.dp))
         )
 
-        // Button Layer (Moves when pressed)
         Box(
             modifier = Modifier
                 .offset(y = offsetY)

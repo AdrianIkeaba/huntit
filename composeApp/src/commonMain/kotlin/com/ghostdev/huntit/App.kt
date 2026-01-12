@@ -15,7 +15,6 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 @Composable
 @Preview
 fun App() {
-    // Use the platform-independent DeepLinkHandler
     val deepLinkHandler = DeepLinkHandler.instance
 
 

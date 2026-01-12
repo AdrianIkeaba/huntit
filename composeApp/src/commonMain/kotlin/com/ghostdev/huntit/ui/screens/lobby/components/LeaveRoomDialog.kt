@@ -35,7 +35,6 @@ import androidx.compose.ui.window.DialogProperties
 import com.ghostdev.huntit.ui.theme.patrickHandFont
 import com.ghostdev.huntit.ui.theme.testSohneFont
 
-// Consistent Game Colors - matching other screens
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
@@ -50,13 +49,11 @@ fun LeaveRoomDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
     ) {
-        // Main Dialog Box with 3D effect
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Shadow Layer (bottom part)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -65,7 +62,6 @@ fun LeaveRoomDialog(
                     .height(200.dp)
             )
 
-            // Content Layer (top part)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -116,7 +112,7 @@ fun LeaveRoomDialog(
                             color = GameGrey,
                             modifier = Modifier.weight(1f)
                         )
-                        
+
                         // Leave button
                         DialogButton(
                             text = "LEAVE",
@@ -141,7 +137,6 @@ fun DialogButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Animate the vertical offset (pushing down)
     val offsetY by animateDpAsState(
         targetValue = if (isPressed) GameShadowHeight else 0.dp,
         animationSpec = spring(dampingRatio = 0.4f), // Bouncy spring
@@ -150,23 +145,21 @@ fun DialogButton(
 
     Box(
         modifier = modifier
-            .height(50.dp) // Total height reserved
+            .height(50.dp)
             .clickable(
                 interactionSource = interactionSource,
-                indication = null, // No ripple, using custom animation
+                indication = null,
                 onClick = onClick
             )
     ) {
-        // Shadow Layer (Static at bottom)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(44.dp) // Match button height
+                .height(44.dp)
                 .background(GameBlack, RoundedCornerShape(12.dp))
         )
 
-        // Button Layer (Moves when pressed)
         Box(
             modifier = Modifier
                 .offset(y = offsetY)

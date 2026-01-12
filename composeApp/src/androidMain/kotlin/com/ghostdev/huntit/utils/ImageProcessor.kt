@@ -17,7 +17,6 @@ actual class ImageProcessor {
                 val originalBitmap = BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
                     ?: return@withContext null
 
-                // Calculate maximum dimensions while maintaining aspect ratio
                 val maxDimension = 1200f
                 val scale: Float
                 val width = originalBitmap.width
@@ -29,7 +28,6 @@ actual class ImageProcessor {
                     maxDimension / height
                 }
 
-                // Only scale down, not up
                 val scaledWidth = if (scale < 1) (width * scale).toInt() else width
                 val scaledHeight = if (scale < 1) (height * scale).toInt() else height
 
@@ -40,14 +38,12 @@ actual class ImageProcessor {
                 var quality = 85
                 var outputStream = ByteArrayOutputStream()
 
-                // Compress with reducing quality until size is acceptable
                 do {
                     outputStream = ByteArrayOutputStream()
                     scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
                     if (quality > 10) quality -= 10
                 } while (outputStream.size() > maxSizeBytes && quality > 10)
 
-                // Recycle bitmaps to free memory
                 if (originalBitmap != scaledBitmap) {
                     originalBitmap.recycle()
                 }

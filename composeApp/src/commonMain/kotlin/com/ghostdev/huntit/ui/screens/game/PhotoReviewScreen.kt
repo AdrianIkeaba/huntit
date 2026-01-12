@@ -2,7 +2,6 @@ package com.ghostdev.huntit.ui.screens.game
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,9 +31,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.MainScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,21 +41,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ghostdev.huntit.data.model.SubmissionState
 import com.ghostdev.huntit.ui.components.AnimatedBackground
 import com.ghostdev.huntit.ui.theme.MainGreen
 import com.ghostdev.huntit.ui.theme.MainRed
 import com.ghostdev.huntit.ui.theme.MainYellow
 import com.ghostdev.huntit.ui.theme.patrickHandFont
 import com.ghostdev.huntit.ui.theme.testSohneFont
-import com.ghostdev.huntit.ui.screens.game.GameViewModel
 import com.ghostdev.huntit.utils.LocalAudioPlayer
-import org.koin.compose.koinInject
 import huntit.composeapp.generated.resources.Res
 import huntit.composeapp.generated.resources.reset
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
-import com.ghostdev.huntit.data.model.SubmissionState
+import org.koin.compose.koinInject
 
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
@@ -69,32 +66,29 @@ private val GameShadowHeight = 4.dp
 fun PhotoReviewScreen(
     innerPadding: PaddingValues,
     viewModel: SubmissionViewModel,
-    imageUrl: String? = null,
     navigateBack: () -> Unit,
     navigateToGame: () -> Unit,
     navigateToWinners: () -> Unit = {}
 ) {
-    // Add GameViewModel to monitor game state changes
+    val wrappedNavigateToGame: () -> Unit = { navigateToGame() }
+    val wrappedNavigateBack: () -> Unit = { navigateBack() }
+    
     val gameViewModel: GameViewModel = koinInject()
     val gameState by gameViewModel.state.collectAsState()
     
-    // Flag to prevent automatic navigation back after button clicks
     val preventFurtherNavigation = remember { androidx.compose.runtime.mutableStateOf(false) }
-    
-    // Use a remembered mutable state for review data that can be updated
     val reviewDataState = remember { androidx.compose.runtime.mutableStateOf(viewModel.getReviewData()) }
-    // For UI rendering, get the current value
-    val reviewData = reviewDataState.value
+    val reviewData = reviewDataState.value 
+                    
+    if (reviewData != null) {
+        preventFurtherNavigation.value = true
+    }
     
-    // Get the audio player to play sound effects
     val audioPlayer = LocalAudioPlayer.current
+    val expectedDisposal = remember { androidx.compose.runtime.mutableStateOf(false) }
     
-    println("PhotoReviewScreen loaded with review data: $reviewData")
-    
-    // Play the appropriate sound effect when the review data is available
     LaunchedEffect(reviewData) {
         if (reviewData != null) {
-            // Play success or failure sound based on the submission result
             if (reviewData.isSuccess) {
                 audioPlayer?.playSound("files/success.mp3")
             } else {
@@ -103,75 +97,45 @@ fun PhotoReviewScreen(
         }
     }
 
-    // Modified approach to wait for review data without auto-navigating back
     LaunchedEffect(Unit) {
-        // Only attempt to get data if review data is null and navigation isn't prevented
-        if (reviewData == null && !preventFurtherNavigation.value) {
-            println("No initial review data available, will keep checking in background")
-            
-            // Use a counter for logging purposes only
-            var attempt = 0
-            
-            // Continue checking until we find data or the screen is disposed
-            while (!preventFurtherNavigation.value) {
-                attempt++
-                
-                // Use an increasing delay pattern with a maximum delay of 1 second
-                val delayMs = (300L * attempt).coerceAtMost(1000L)
-                println("Attempt $attempt: Waiting ${delayMs}ms for review data...")
-                kotlinx.coroutines.delay(delayMs)
-                
-                // Check again after delay
-                val latestReviewData = viewModel.getReviewData()
-                
-                // Update our state with the latest data
+        if (reviewData == null) {
+            val latestReviewData = viewModel.getReviewData()
+            if (latestReviewData != null) {
                 reviewDataState.value = latestReviewData
-                
-                if (latestReviewData != null) {
-                    println("Review data appeared on attempt $attempt, staying on review screen")
-                    break // Exit the loop, we have data
-                }
-                
-                // If we've been prevented from navigation during our checks, stop trying
-                if (preventFurtherNavigation.value) {
-                    println("Navigation prevention flag was set, staying on review screen")
-                    break
-                }
-                
-                // Add a large number of attempts check as a safety valve
-                // but NEVER automatically navigate back to game screen
-                if (attempt >= 20) {
-                    println("Made 20 attempts to get review data, still waiting...")
-                    // Just continue waiting instead of navigating back
-                }
             }
         }
     }
     
-    // Handle navigation to winners screen when game is over
+    LaunchedEffect(gameState.timeRemainingMs) {
+        if (gameState.timeRemainingMs <= 0 && !preventFurtherNavigation.value) {
+            delay(6500)
+            wrappedNavigateToGame()
+        }
+    }
+    
     LaunchedEffect(gameState.shouldNavigateToWinners) {
         if (gameState.shouldNavigateToWinners) {
-            println("Game over detected while in PhotoReviewScreen - navigating to winners")
+            expectedDisposal.value = true
             gameViewModel.onWinnersNavigationHandled()
             navigateToWinners()
         }
     }
 
-    // Use DisposableEffect to handle screen lifecycle
     DisposableEffect(Unit) {
-        // Mark screen as active to ensure navigation works correctly
-        val isFirstAppearance = true
+        expectedDisposal.value = false
         
         onDispose {
-            println("PhotoReviewScreen is being disposed - this is normal during navigation")
-            // Do not clear the cache here - we manage it explicitly during navigation
+        }
+    }
+    
+    LaunchedEffect(gameState.shouldNavigateToWinners) {
+        if (gameState.shouldNavigateToWinners) {
+            expectedDisposal.value = true
         }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Use AnimatedBackground as in the design
         AnimatedBackground(modifier = Modifier.fillMaxSize()) {
-            // Make sure the content is centered vertically and has proper padding
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -179,143 +143,102 @@ fun PhotoReviewScreen(
                     .padding(horizontal = 24.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Only show content if we have review data
-                // Get the current submission state to check for errors
                 val submissionState = viewModel.getReviewState()
                 
                 if (submissionState is SubmissionState.Error) {
-                    // Handle unexpected errors with the generic error card
                     GenericErrorCard(
                         errorMessage = "Something went wrong. Please try again later.",
                         onReturnToGame = {
-                            // Prevent automatic navigation back
                             preventFurtherNavigation.value = true
-                            println("Preventing further navigation after error Return To Game click")
+                            expectedDisposal.value = true
                             
-                            // Clear data and return to game
                             val dataCleanupScope = kotlinx.coroutines.MainScope()
-                            // First navigate
-                            navigateToGame()
-                            // Use a delay before clearing data to ensure navigation completes
+                            wrappedNavigateToGame()
+                            
                             dataCleanupScope.launch {
                                 try {
-                                    // Wait for navigation to complete
                                     kotlinx.coroutines.delay(500)
                                     viewModel.clearReviewData()
-                                    println("Cleared review data after error")
                                 } catch (e: Exception) {
-                                    println("Error during cleanup: ${e.message}")
                                 }
                             }
                         },
                         onRetry = if (submissionState.canRetry) {
                             {
-                                // Prevent automatic navigation back
                                 preventFurtherNavigation.value = true
-                                println("Preventing further navigation after error Try Again click")
+                                expectedDisposal.value = true
                                 
                                 viewModel.clearReviewData()
-                                navigateBack()
+                                wrappedNavigateBack()
                             }
                         } else null
                     )
                 } else if (reviewDataState.value != null) {
-                    // Use the latest data from our state
                     val reviewData = reviewDataState.value
-                    // Check if we have a round ended error
                     if (viewModel.isRoundEndedError) {
-                        // For round ended error, show a simplified view with only return to game option
                         RoundEndedErrorCard(
                             challenge = reviewData!!.challenge,
                             onReturnToGame = {
-                                // Prevent automatic navigation back after button click
                                 preventFurtherNavigation.value = true
-                                println("Preventing further navigation after button click")
+                                expectedDisposal.value = true
                                 
-                                // Clear data and return to game
                                 val dataCleanupScope = kotlinx.coroutines.MainScope()
-                                // First navigate
-                                navigateToGame()
-                                // Use a delay before clearing data to ensure navigation completes
+                                wrappedNavigateToGame()
                                 dataCleanupScope.launch {
                                     try {
-                                        // Wait for navigation to complete
                                         kotlinx.coroutines.delay(500)
                                         viewModel.clearReviewData()
-                                        println("Cleared review data after round ended error")
                                     } catch (e: Exception) {
-                                        println("Error during cleanup: ${e.message}")
                                     }
                                 }
                             }
                         )
                     } else {
-                        // Normal review card for other scenarios
                         ReviewCard(
                             reviewData = reviewData!!,
                             onTryAgain = {
-                                // Prevent automatic navigation back
                                 preventFurtherNavigation.value = true
-                                println("Preventing further navigation after Try Again click")
+                                expectedDisposal.value = true
                                 
                                 viewModel.clearReviewData()
-                                navigateBack()
+                                wrappedNavigateBack()
                             },
                             onSkipRound = {
-                                // Prevent automatic navigation back
                                 preventFurtherNavigation.value = true
-                                println("Preventing further navigation after Skip Round click")
+                                expectedDisposal.value = true
                                 
-                                // First skip the round
                                 viewModel.skipRound()
-                                // Create a scope for cleanup that won't be canceled by navigation
                                 val cleanupScope = kotlinx.coroutines.MainScope()
-                                // Then navigate
-                                navigateToGame()
-                                // Clear data after navigation with a longer delay
+                                wrappedNavigateToGame()
                                 cleanupScope.launch {
                                     try {
-                                        // Longer delay to ensure navigation completes first
                                         kotlinx.coroutines.delay(500)
                                         viewModel.clearReviewData()
-                                        println("Cleared review data after skip round")
                                     } catch (e: Exception) {
-                                        println("Error during cleanup after skip: ${e.message}")
                                     }
                                 }
                             },
                             onContinue = {
-                                // Prevent automatic navigation back
                                 preventFurtherNavigation.value = true
-                                println("Preventing further navigation after Continue click")
+                                expectedDisposal.value = true
                                 
-                                // Create scope for cleanup that won't be canceled by navigation
-                                val dataCleanupScope = kotlinx.coroutines.MainScope()
-                                // First navigate
-                                navigateToGame()
-                                // Use a longer delay before clearing data to ensure navigation completes
+                                val dataCleanupScope = MainScope()
+                                wrappedNavigateToGame()
                                 dataCleanupScope.launch {
                                     try {
-                                        // Wait for navigation to complete
-                                        kotlinx.coroutines.delay(500)
+                                        delay(500)
                                         viewModel.clearReviewData()
-                                        println("Cleared review data after navigation")
                                     } catch (e: Exception) {
-                                        println("Error during cleanup: ${e.message}")
                                     }
                                 }
                             }
                         )
                     }
                 } else {
-                    // No review data, show loading with app's style
-                    // Add a debounced loading state to prevent flickering
                     val showLoading = remember { androidx.compose.runtime.mutableStateOf(false) }
                     
-                    // Only show loading indicator after a short delay to prevent flickering
                     LaunchedEffect(Unit) {
-                        // Delay showing the loading indicator to prevent flickering
-                        kotlinx.coroutines.delay(500)
+                        delay(500)
                         if (reviewDataState.value == null) {
                             showLoading.value = true
                         }
@@ -345,9 +268,6 @@ fun PhotoReviewScreen(
                                 )
                             )
                         }
-                    } else {
-                        // Show nothing while waiting for the loading indicator to appear
-                        // This helps prevent flickering on fast loads
                     }
                 }
             }
@@ -362,14 +282,12 @@ private fun ReviewCard(
     onSkipRound: () -> Unit,
     onContinue: () -> Unit
 ) {
-    // 3D Card effect with shadow
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(elevation = 8.dp, shape = RoundedCornerShape(24.dp))
             .padding(bottom = GameShadowHeight)
     ) {
-        // Card content
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -414,7 +332,6 @@ private fun SuccessContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Success icon with app-themed colors
         Box(
             modifier = Modifier
                 .size(64.dp)
@@ -431,7 +348,6 @@ private fun SuccessContent(
             )
         }
 
-        // Title text with app's font
         Text(
             text = "PERFECT MATCH!",
             style = TextStyle(
@@ -444,7 +360,6 @@ private fun SuccessContent(
             )
         )
 
-        // Description with app's style
         Text(
             text = "Your photo matches the challenge perfectly",
             fontFamily = patrickHandFont(),
@@ -455,7 +370,6 @@ private fun SuccessContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Challenge requirements box with consistent styling
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -499,7 +413,6 @@ private fun SuccessContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Points indicator with app's style
         Box(
             modifier = Modifier
                 .background(
@@ -537,7 +450,6 @@ private fun SuccessContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Continue button with app's 3D style
         GamifiedButton(
             text = "CONTINUE TO NEXT ROUND",
             bgColor = MainYellow,
@@ -546,7 +458,6 @@ private fun SuccessContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Bottom message
         Text(
             text = "Great work! Keep hunting to increase your points.",
             fontFamily = patrickHandFont(),
@@ -569,7 +480,6 @@ private fun FailureContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Error icon with app-themed colors
         Box(
             modifier = Modifier
                 .size(64.dp)
@@ -586,7 +496,6 @@ private fun FailureContent(
             )
         }
 
-        // Title text with app's font
         Text(
             text = "NOT QUITE RIGHT",
             style = TextStyle(
@@ -599,7 +508,6 @@ private fun FailureContent(
             )
         )
 
-        // Description
         Text(
             text = "Your photo doesn't match the challenge",
             fontFamily = patrickHandFont(),
@@ -608,7 +516,6 @@ private fun FailureContent(
             textAlign = TextAlign.Center
         )
 
-        // Display the specific reason for rejection
         Text(
             text = reason,
             fontFamily = patrickHandFont(),
@@ -620,7 +527,6 @@ private fun FailureContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Challenge requirements box with consistent styling
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -664,7 +570,6 @@ private fun FailureContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Tips box with app's consistent styling
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -681,7 +586,6 @@ private fun FailureContent(
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.Top) {
-                    // Light bulb icon with app's style
                     Box(
                         modifier = Modifier
                             .size(32.dp)
@@ -723,7 +627,6 @@ private fun FailureContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Try Again button with app's 3D style
         GamifiedButton(
             text = "TAKE ANOTHER PHOTO",
             bgColor = MainYellow,
@@ -733,7 +636,6 @@ private fun FailureContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Skip button with app's style
         GamifiedButton(
             text = "SKIP THIS ROUND",
             bgColor = GameGrey,
@@ -742,7 +644,6 @@ private fun FailureContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Bottom message
         Text(
             text = "Don't worry! You can try again or skip this challenge",
             fontFamily = patrickHandFont(),
@@ -785,33 +686,30 @@ private fun GamifiedButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Animate the vertical offset for the physical "push down" effect
     val offsetY by animateDpAsState(
         targetValue = if (isPressed) GameShadowHeight else 0.dp,
-        animationSpec = spring(dampingRatio = 0.4f), // Bouncy spring for tactile feel
+        animationSpec = spring(dampingRatio = 0.4f),
         label = "ButtonOffset"
     )
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp) // Total height reserved including shadow space
+            .height(56.dp)
             .clickable(
                 interactionSource = interactionSource,
-                indication = null, // No ripple, using custom animation
+                indication = null,
                 onClick = onClick
             )
     ) {
-        // Shadow Layer (Static at bottom)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(52.dp) // Match button height
+                .height(52.dp)
                 .background(GameBlack, RoundedCornerShape(16.dp))
         )
 
-        // Button Layer (Moves when pressed)
         Box(
             modifier = Modifier
                 .offset(y = offsetY)
@@ -851,22 +749,17 @@ private fun GamifiedButton(
     }
 }
 
-/**
- * Special card to display when submission was attempted after the round ended
- */
 @Composable
 private fun RoundEndedErrorCard(
     challenge: String,
     onReturnToGame: () -> Unit
 ) {
-    // 3D Card effect with shadow
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(elevation = 8.dp, shape = RoundedCornerShape(24.dp))
             .padding(bottom = GameShadowHeight)
     ) {
-        // Card content
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -887,7 +780,6 @@ private fun RoundEndedErrorCard(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Round ended icon with app-themed colors
                 Box(
                     modifier = Modifier
                         .size(64.dp)
@@ -902,7 +794,6 @@ private fun RoundEndedErrorCard(
                     )
                 }
 
-                // Title text with app's font
                 Text(
                     text = "ROUND ALREADY ENDED",
                     style = TextStyle(
@@ -915,7 +806,6 @@ private fun RoundEndedErrorCard(
                     )
                 )
 
-                // Description with app's style
                 Text(
                     text = "You were too late! The round ended before your submission was processed.",
                     fontFamily = patrickHandFont(),
@@ -926,7 +816,6 @@ private fun RoundEndedErrorCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Challenge that was attempted box
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -970,7 +859,6 @@ private fun RoundEndedErrorCard(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Return to Game button with app's 3D style
                 GamifiedButton(
                     text = "RETURN TO GAME",
                     bgColor = MainYellow,
@@ -979,7 +867,6 @@ private fun RoundEndedErrorCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Bottom message
                 Text(
                     text = "Get ready for the next round!",
                     fontFamily = patrickHandFont(),
@@ -992,23 +879,18 @@ private fun RoundEndedErrorCard(
     }
 }
 
-/**
- * Generic error card to display for unexpected errors
- */
 @Composable
 private fun GenericErrorCard(
     errorMessage: String = "Something went wrong",
     onReturnToGame: () -> Unit,
     onRetry: (() -> Unit)? = null
 ) {
-    // 3D Card effect with shadow
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(elevation = 8.dp, shape = RoundedCornerShape(24.dp))
             .padding(bottom = GameShadowHeight)
     ) {
-        // Card content
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1029,7 +911,6 @@ private fun GenericErrorCard(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Error icon with app-themed colors
                 Box(
                     modifier = Modifier
                         .size(64.dp)
@@ -1046,7 +927,6 @@ private fun GenericErrorCard(
                     )
                 }
 
-                // Title text with app's font
                 Text(
                     text = "OOPS!",
                     style = TextStyle(
@@ -1059,7 +939,6 @@ private fun GenericErrorCard(
                     )
                 )
 
-                // Generic user-friendly error message
                 Text(
                     text = errorMessage,
                     fontFamily = patrickHandFont(),
@@ -1071,7 +950,6 @@ private fun GenericErrorCard(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // If retry option is available, show retry button
                 if (onRetry != null) {
                     GamifiedButton(
                         text = "TRY AGAIN",
@@ -1082,7 +960,6 @@ private fun GenericErrorCard(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // Return to Game button
                 GamifiedButton(
                     text = "RETURN TO GAME",
                     bgColor = if (onRetry == null) MainYellow else GameGrey,
@@ -1091,7 +968,6 @@ private fun GenericErrorCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Bottom message
                 Text(
                     text = if (onRetry != null)
                         "You can try again or return to the game"

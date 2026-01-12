@@ -9,7 +9,6 @@ import org.koin.core.module.Module
 import org.koin.dsl.module
 
 fun androidPlatformModule(applicationContext: Context): Module = module {
-    // Provide the Android-specific implementation of SoundSettingsRepository
     single<SoundSettingsRepository> { 
         AndroidSoundSettingsRepositoryImpl(get(), applicationContext)
     }

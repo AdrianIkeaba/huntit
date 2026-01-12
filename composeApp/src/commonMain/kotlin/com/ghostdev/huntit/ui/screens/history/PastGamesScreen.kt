@@ -56,13 +56,11 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 import com.ghostdev.huntit.utils.toUserFriendlyError
 
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
 private val GameShadowHeight = 4.dp
 
-// Define game history data class here to ensure it's visible to the composables
 data class GameHistory(
     val id: String,
     val roomCode: String,
@@ -83,22 +81,18 @@ fun PastGamesScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Show error message with user-friendly text
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
-            // Check if it's a known user-friendly error
             val isUserFriendlyError = it.contains("No past games found") ||
                                      it.contains("Connection error") ||
                                      it.contains("Please sign in")
-            
-            // Only convert technical errors to user-friendly message
+
             val displayError = if (isUserFriendlyError) {
-                it // Use known error as-is
+                it
             } else {
                 it.toUserFriendlyError("Something went wrong while loading your game history.")
             }
-            
-            // Show the error message without "Error:" prefix for user-friendly errors
+
             snackbarHostState.showSnackbar(if (isUserFriendlyError) displayError else "Error: $displayError")
             viewModel.clearErrorMessage()
         }

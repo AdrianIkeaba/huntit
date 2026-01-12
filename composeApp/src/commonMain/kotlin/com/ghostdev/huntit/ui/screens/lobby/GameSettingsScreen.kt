@@ -64,7 +64,6 @@ import huntit.composeapp.generated.resources.delete
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 
-// Consistent Game Colors - matching other screens
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
@@ -154,11 +153,9 @@ fun GameSettingsComponent(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                // Back button with 3D effect
                                 Box(
                                     modifier = Modifier.size(40.dp)
                                 ) {
-                                    // Shadow Layer
                                     Box(
                                         modifier = Modifier
                                             .size(40.dp)
@@ -197,8 +194,7 @@ fun GameSettingsComponent(
                                     )
                                 )
                             }
-                            
-                            // Right side: Delete button as an icon
+
                             Box(
                                 modifier = Modifier.size(40.dp)
                             ) {

@@ -25,10 +25,8 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -58,29 +56,27 @@ import com.ghostdev.huntit.ui.theme.testSohneFont
 import com.ghostdev.huntit.utils.EnhancedAudioPlayer
 import com.ghostdev.huntit.utils.LocalAudioPlayer
 import com.ghostdev.huntit.utils.rememberSnackbarManager
+import com.ghostdev.huntit.utils.toUserFriendlyError
 import huntit.composeapp.generated.resources.Res
 import huntit.composeapp.generated.resources.add
 import huntit.composeapp.generated.resources.history
 import huntit.composeapp.generated.resources.music
 import huntit.composeapp.generated.resources.people
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
-import com.ghostdev.huntit.utils.toUserFriendlyError
 
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
 private val GameShadowHeight = 4.dp
 
-// Helper function for safe function calls
 private fun safeCall(action: () -> Unit) {
     try {
         action()
     } catch (e: Exception) {
-        println("Error in UI action: ${e.message}")
     }
 }
 
@@ -90,41 +86,40 @@ fun HomeScreen(
     navigateToCreateGameRoom: () -> Unit,
     navigateToLobby: (String) -> Unit,
     navigateToSignIn: () -> Unit,
-    navigateToPastGames: () -> Unit = {}, // Past games navigation
-    navigateToPublicGames: () -> Unit = {}, // Public games navigation
+    navigateToPastGames: () -> Unit = {},
+    navigateToPublicGames: () -> Unit = {},
     viewModel: HomeViewModel = koinViewModel()
 ) {
-    // Safe state collection with fallback
+
     val uiState by remember { 
-        try { 
-            viewModel.uiState 
-        } catch (e: Exception) { 
-            println("Error getting uiState flow: ${e.message}")
-            kotlinx.coroutines.flow.MutableStateFlow(HomeUiState())
-        } 
+                    try { 
+                viewModel.uiState 
+            } catch (e: Exception) { 
+                kotlinx.coroutines.flow.MutableStateFlow(HomeUiState())
+            } 
     }.collectAsState()
     
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarManager = rememberSnackbarManager()
     
-    // Safely access audio player without forcing a return
+
     val audioPlayer = LocalAudioPlayer.current
 
-    // Show error message with proper error handling
+
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
-            // Check if it's a validation or known user-friendly error
+
             val isUserFriendlyError = it.contains("Please enter") || 
                                      it.contains("Profile update failed") ||
                                      it.contains("Connection error") ||
                                      it.contains("Maximum players") ||
                                      it.contains("Room name")
             
-            // Only convert technical errors to user-friendly message
+
             val displayError = if (isUserFriendlyError) {
-                it // Use validation error as-is
+it 
             } else {
-                // Safe conversion
+
                 try {
                     it.toUserFriendlyError("Something went wrong. Please try again later.")
                 } catch (e: Exception) {
@@ -132,31 +127,31 @@ fun HomeScreen(
                 }
             }
             
-            // Show the error message without "Error:" prefix for user-friendly errors
+
             snackbarHostState.showSnackbar(if (isUserFriendlyError) it else "Error: $displayError")
             
-            // Safely clear messages
+
             try {
                 viewModel.clearMessages()
             } catch (e: Exception) {
-                println("Error clearing messages: ${e.message}")
+
             }
         }
     }
 
-    // Show success message
+
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
             snackbarHostState.showSnackbar(it)
             try {
                 viewModel.clearMessages()
             } catch (e: Exception) {
-                println("Error clearing success messages: ${e.message}")
+
             }
         }
     }
 
-    // Show messages from SnackbarManager
+
     LaunchedEffect(snackbarManager.currentMessage.value) {
         val message = snackbarManager.currentMessage.value
         if (message != null) {
@@ -164,27 +159,27 @@ fun HomeScreen(
             try {
                 snackbarManager.clearMessage()
             } catch (e: Exception) {
-                println("Error clearing snackbar message: ${e.message}")
+
             }
         }
     }
 
-    // Handle navigation after successful logout
+
     LaunchedEffect(uiState.logoutComplete) {
         if (uiState.logoutComplete) {
             try {
                 viewModel.resetLogoutState()
             } catch (e: Exception) {
-                println("Error resetting logout state: ${e.message}")
+
             }
             navigateToSignIn()
         }
     }
 
-    // Use an outer box to provide a stable structure
+
     Box(modifier = Modifier.fillMaxSize()) {
         if (audioPlayer != null) {
-            // Use the normal component if audio is available
+
             HomeComponent(
                 innerPadding = innerPadding,
                 audioPlayer = audioPlayer,
@@ -227,7 +222,7 @@ fun HomeScreen(
                 snackbarHostState = snackbarHostState
             )
         } else {
-            // Simplified fallback UI when audio player is null
+
             Column(
                 modifier = Modifier.fillMaxSize().padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -256,16 +251,16 @@ fun HomeScreen(
             }
         }
         
-        // Always show snackbar host for error messages
+
         StyledSnackbarHost(
             snackbarHostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
         
-        // Try to recover by reinitializing after a delay
+
         LaunchedEffect(Unit) {
             delay(1000)
-            // Force refresh the screen
+
             safeCall { viewModel.clearMessages() }
         }
     }
@@ -298,7 +293,7 @@ private fun HomeComponent(
     val showJoinRoomDialog = remember { mutableStateOf(false) }
     val showSoundSettingsDialog = remember { mutableStateOf(false) }
     
-    // Sound settings view model
+
     val soundSettingsViewModel: SoundSettingsViewModel = koinViewModel()
     val backgroundMusicEnabled by soundSettingsViewModel.backgroundMusicEnabled.collectAsState()
     val soundEffectsEnabled by soundSettingsViewModel.soundEffectsEnabled.collectAsState()
@@ -316,7 +311,7 @@ private fun HomeComponent(
                     .padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Header Section
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -324,7 +319,7 @@ private fun HomeComponent(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Profile button
+
                     Row(
                         modifier = Modifier
                             .wrapContentWidth()
@@ -333,11 +328,11 @@ private fun HomeComponent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Avatar with 3D effect
+
                         Box(
                             modifier = Modifier.size(40.dp)
                         ) {
-                            // Shadow Layer (bottom)
+
                             Image(
                                 modifier = Modifier
                                     .size(40.dp)
@@ -353,7 +348,7 @@ private fun HomeComponent(
                                 alpha = 0.3f
                             )
 
-                            // Main Layer (top)
+
                             Image(
                                 modifier = Modifier
                                     .size(40.dp)
@@ -390,12 +385,12 @@ private fun HomeComponent(
                         }
                     }
                     
-                    // Music settings button
+
                     Box(
                         modifier = Modifier
                             .size(44.dp)
                     ) {
-                        // Shadow (bottom layer)
+
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
@@ -405,7 +400,7 @@ private fun HomeComponent(
                                 .align(Alignment.BottomEnd)
                         )
                         
-                        // Button (top layer)
+
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
@@ -427,12 +422,12 @@ private fun HomeComponent(
 
                 Spacer(modifier = Modifier.height(40.dp))
 
-                // Title
+
                 GamifiedTitle(text = "Hunt.it")
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Game description
+
                 Text(
                     text = "The social game where friends compete to find and snap items before time runs out!",
                     style = TextStyle(
@@ -446,7 +441,7 @@ private fun HomeComponent(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Game Actions
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -454,7 +449,7 @@ private fun HomeComponent(
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Join Game Button
+
                     GamifiedActionButton(
                         text = "JOIN A GAME ROOM",
                         iconRes = Res.drawable.people,
@@ -464,7 +459,7 @@ private fun HomeComponent(
                         }
                     )
 
-                    // Create Game Button
+
                     GamifiedActionButton(
                         text = "CREATE A GAME ROOM",
                         iconRes = Res.drawable.add,
@@ -482,7 +477,7 @@ private fun HomeComponent(
 
                 Spacer(modifier = Modifier.weight(0.5f))
 
-                // Footer
+
                 Box(
                     modifier = Modifier
                         .padding(bottom = 24.dp)
@@ -533,7 +528,7 @@ private fun HomeComponent(
                 )
             }
 
-            // Show logout confirmation dialog if requested
+
             if (showLogoutConfirmation) {
                 LogoutConfirmationDialog(
                     isLoading = isLoggingOut,
@@ -542,7 +537,7 @@ private fun HomeComponent(
                 )
             }
             
-            // Sound settings dialog
+
             if (showSoundSettingsDialog.value) {
                 SoundSettingsDialog(
                     onDismiss = { showSoundSettingsDialog.value = false },
@@ -577,7 +572,7 @@ fun GamifiedTitle(
         Box(
             contentAlignment = Alignment.Center
         ) {
-            // Shadow layer
+
             Text(
                 text = text,
                 style = TextStyle(
@@ -589,7 +584,7 @@ fun GamifiedTitle(
                 modifier = Modifier.offset(x = 3.dp, y = 3.dp)
             )
 
-            // Main text layer
+
             Text(
                 text = text,
                 style = TextStyle(
@@ -613,10 +608,10 @@ fun GamifiedActionButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     
-    // Safely access audio player without forcing a return
+
     val audioPlayer = LocalAudioPlayer.current
 
-    // Animate the vertical offset (pushing down)
+
     val offsetY by animateDpAsState(
         targetValue = if (isPressed) GameShadowHeight else 0.dp,
         animationSpec = spring(dampingRatio = 0.4f), // Bouncy spring
@@ -631,17 +626,17 @@ fun GamifiedActionButton(
                 interactionSource = interactionSource,
                 indication = null, // No ripple, using custom animation
                 onClick = {
-                    // Safe sound playback that won't crash if it fails
+
                     safeCall {
                         audioPlayer?.playSound("files/button_click.mp3")
                     }
                     
-                    // Execute the main click handler safely
+
                     safeCall { onClick() }
                 }
             )
     ) {
-        // Shadow Layer (Static at bottom)
+
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -650,7 +645,7 @@ fun GamifiedActionButton(
                 .background(GameBlack, RoundedCornerShape(16.dp))
         )
 
-        // Button Layer (Moves when pressed)
+
         Box(
             modifier = Modifier
                 .offset(y = offsetY)
@@ -666,7 +661,7 @@ fun GamifiedActionButton(
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Icon if provided
+
                 Image(
                     painter = painterResource(iconRes),
                     contentDescription = null,

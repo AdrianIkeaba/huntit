@@ -30,7 +30,7 @@ class LeaderboardRepositoryImpl(
             // Sort participants by score in descending order
             val sortedParticipants = participants.sortedByDescending { it.currentScore }
 
-            // Apply limit if needed (already applied in the query, but just to be safe)
+            // Apply limit if needed
             val limitedParticipants =
                 limit?.let { sortedParticipants.take(it) } ?: sortedParticipants
 

@@ -46,7 +46,6 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameGrey = Color(0xFFE5E5E5)
 
@@ -61,8 +60,6 @@ fun OnboardingScreen(
     navigateToSignIn: () -> Unit,
     viewModel: OnboardingViewModel = org.koin.compose.viewmodel.koinViewModel()
 ) {
-    // We only want to mark onboarding as completed when the user completes the onboarding flow
-    // NOT when they first see the screen
     val pages = listOf(
         OnboardingPage(
             title = "Join the Hunt!",
@@ -90,18 +87,15 @@ fun OnboardingScreen(
                 .fillMaxSize()
                 .systemBarsPadding()
         ) {
-            // Top Bar with Skip
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 contentAlignment = Alignment.CenterEnd
             ) {
-                // Create a wrapper onClick function that plays sound
                 val audioPlayer = LocalAudioPlayer.current
                 val onSkipClick = {
                     audioPlayer?.playSound("files/button_click.mp3")
-                    // Mark onboarding as completed when the user skips
                     viewModel.onOnboardingCompleted()
                     navigateToSignIn()
                 }
@@ -129,14 +123,12 @@ fun OnboardingScreen(
                 OnboardingPageContent(page = pages[pageIndex])
             }
 
-            // Bottom Section (Indicators + Button)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Gamified Page Indicators
                 PageIndicators(
                     pagerState = pagerState,
                     pageCount = pages.size
@@ -144,7 +136,6 @@ fun OnboardingScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Main Action Button (Using the bouncy button built previously)
                 val isLastPage = pagerState.currentPage == pages.lastIndex
                 val buttonText = if (isLastPage) "GET STARTED" else "CONTINUE"
 
@@ -153,7 +144,6 @@ fun OnboardingScreen(
                     isLoading = false,
                     onClick = {
                         if (isLastPage) {
-                            // Mark onboarding as completed when user completes the flow
                             viewModel.onOnboardingCompleted()
                             navigateToSignIn()
                         } else {

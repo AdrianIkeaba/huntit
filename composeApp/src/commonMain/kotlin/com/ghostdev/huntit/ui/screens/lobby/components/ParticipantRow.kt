@@ -65,7 +65,6 @@ fun ParticipantRow(
             ) {
                 // Display the first 3 participants (or all if there are less than 3)
                 participants.take(visibleCount).forEachIndexed { index, participant ->
-                    // Create 3D effect avatar
                     Box(
                         modifier = Modifier
                             .size(avatarSize)
@@ -73,7 +72,6 @@ fun ParticipantRow(
                             .offset(x = step * index)
                             .zIndex(index.toFloat())
                     ) {
-                        // Shadow Layer (bottom)
                         Box(
                             modifier = Modifier
                                 .size(avatarSize)
@@ -118,7 +116,6 @@ fun ParticipantRow(
                 }
             }
         } else {
-            // Handle empty participants case with a placeholder
             Box(
                 modifier = Modifier
                     .width(avatarSize)

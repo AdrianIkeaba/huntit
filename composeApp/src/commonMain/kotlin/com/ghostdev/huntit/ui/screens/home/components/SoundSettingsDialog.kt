@@ -27,7 +27,7 @@ import com.ghostdev.huntit.utils.LocalAudioPlayer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// Consistent Game Colors from HomeScreen
+
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 
@@ -73,7 +73,7 @@ fun SoundSettingsDialog(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Shadow layer
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -85,7 +85,7 @@ fun SoundSettingsDialog(
                     .padding(16.dp)
             )
 
-            // Content layer
+
             Column(
                 modifier = Modifier
                     .scale(dialogScale)
@@ -104,7 +104,7 @@ fun SoundSettingsDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                // Dialog Title
+
                 Text(
                     text = "Sound Settings",
                     style = TextStyle(
@@ -115,48 +115,33 @@ fun SoundSettingsDialog(
                     )
                 )
 
-                // Background Music Toggle
+
                 SettingsToggleOption(
                     title = "Background Music",
                     isChecked = localBackgroundMusicEnabled,
                     onCheckedChange = { newValue -> 
                         localBackgroundMusicEnabled = newValue
                         
-                        // Apply changes immediately
                         if (newValue) {
-                            // If enabling, try to play background music
-                            // First set the volume to match settings
                             audioPlayer?.setVolume(localMusicVolume)
-                            
-                            // Try to resume music first
                             audioPlayer?.resumeBackgroundMusic()
                             
-                            // If the music player has no active media item (like after app restart),
-                            // we need to start playback from scratch
                             try {
-                                // Check if music is actually playing after resume
-                                // Wait a tiny bit to give resumeBackgroundMusic() a chance
                                 kotlinx.coroutines.MainScope().launch {
                                     kotlinx.coroutines.delay(100)
-                                    
-                                    // This is a workaround since we can't directly check if music is playing.
-                                    // Instead we'll always play music from scratch when the toggle is activated
                                     audioPlayer?.playBackgroundMusic("files/background_music.mp3")
                                 }
                             } catch (e: Exception) {
-                                // Fallback if anything goes wrong
                                 audioPlayer?.playBackgroundMusic("files/background_music.mp3")
                             }
                         } else {
-                            // If disabling, pause background music
                             audioPlayer?.pauseBackgroundMusic()
+                            audioPlayer?.setVolume(0f)
                         }
                         
-                        // Save changes to preferences
                         onBackgroundMusicToggled(newValue)
                         
-                        // Play sound effect to confirm the change if effects are enabled
-                        if (localSoundEffectsEnabled) {
+                        if (newValue) {
                             audioPlayer?.playSound("files/button_click.mp3")
                         }
                     }
@@ -186,7 +171,7 @@ fun SoundSettingsDialog(
                                 .fillMaxWidth()
                                 .height(40.dp)
                         ) {
-                            // Slider background
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -201,18 +186,18 @@ fun SoundSettingsDialog(
                             Slider(
                                 value = localMusicVolume,
                                 onValueChange = { newVolume ->
-                                    // Update local state for smooth UI during dragging
+
                                     localMusicVolume = newVolume
                                     
-                                    // Apply volume change in real-time if music is enabled
+
                                     if (localBackgroundMusicEnabled) {
                                         audioPlayer?.setVolume(newVolume)
                                     }
                                 },
                                 onValueChangeFinished = {
-                                    // Only save to preferences when user releases the slider
+
                                     onMusicVolumeChanged(localMusicVolume)
-                                    // No demonstration sound needed since background music is already playing
+
                                 },
                                 colors = SliderDefaults.colors(
                                     thumbColor = MainYellow,
@@ -223,7 +208,7 @@ fun SoundSettingsDialog(
                             )
                         }
 
-                        // Volume percentage indicator
+
                         Box(
                             modifier = Modifier.fillMaxWidth(),
                             contentAlignment = Alignment.Center
@@ -241,18 +226,23 @@ fun SoundSettingsDialog(
                     }
                 }
 
-                // Sound Effects Toggle
+
                 SettingsToggleOption(
                     title = "Sound Effects",
                     isChecked = localSoundEffectsEnabled,
                     onCheckedChange = { newValue -> 
                         localSoundEffectsEnabled = newValue
                         
-                        // Save changes to preferences
+
                         onSoundEffectsToggled(newValue)
                         
-                        // Play sound effect to confirm the change if we're enabling sound effects
-                        if (newValue) {
+                        // If turning off sound effects, set volume to 0 to immediately disable them
+                        if (!newValue) {
+                            audioPlayer?.setSoundEffectsVolume(0f)
+                        } else {
+                            // If turning on, restore the volume to the slider value
+                            audioPlayer?.setSoundEffectsVolume(localSoundEffectsVolume)
+                            // Play sound effect to confirm the change is working
                             audioPlayer?.playSound("files/button_click.mp3")
                         }
                     }
@@ -283,7 +273,7 @@ fun SoundSettingsDialog(
                                 .fillMaxWidth()
                                 .height(40.dp)
                         ) {
-                            // Slider background
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -298,7 +288,7 @@ fun SoundSettingsDialog(
                             Slider(
                                 value = localSoundEffectsVolume,
                                 onValueChange = { newVolume ->
-                                    // Update local state for smooth UI during dragging
+
                                     localSoundEffectsVolume = newVolume
                                     
                                     // Apply sound effects volume change in real-time
@@ -309,7 +299,8 @@ fun SoundSettingsDialog(
                                     onSoundEffectsVolumeChanged(localSoundEffectsVolume)
                                     
                                     // Play a sound effect to demonstrate the new volume level
-                                    if (localSoundEffectsEnabled) {
+                                    // Only if sound effects are enabled and volume is > 0
+                                    if (localSoundEffectsEnabled && localSoundEffectsVolume > 0) {
                                         audioPlayer?.playSound("files/button_click.mp3")
                                     }
                                 },
@@ -322,7 +313,7 @@ fun SoundSettingsDialog(
                             )
                         }
 
-                        // Volume percentage indicator
+
                         Box(
                             modifier = Modifier.fillMaxWidth(),
                             contentAlignment = Alignment.Center
@@ -345,7 +336,8 @@ fun SoundSettingsDialog(
                     text = "CLOSE",
                     onClick = {
                         // Play button click sound if sound effects are enabled
-                        if (localSoundEffectsEnabled) {
+                        // This is the last chance to play a sound, so we must respect the current setting
+                        if (localSoundEffectsEnabled && localSoundEffectsVolume > 0) {
                             audioPlayer?.playSound("files/button_click.mp3")
                         }
                         

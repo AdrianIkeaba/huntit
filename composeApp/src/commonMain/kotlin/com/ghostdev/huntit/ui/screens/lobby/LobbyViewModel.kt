@@ -37,7 +37,7 @@ data class LobbyState(
     val showKickedDialog: Boolean = false,
     val isStartingGame: Boolean = false,
     val gameStarted: Boolean = false,
-    val voluntaryLeave: Boolean = false // Flag to indicate user voluntarily left
+    val voluntaryLeave: Boolean = false
 )
 
 class LobbyViewModel(

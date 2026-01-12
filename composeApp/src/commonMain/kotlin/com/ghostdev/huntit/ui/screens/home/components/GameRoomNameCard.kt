@@ -33,10 +33,8 @@ import com.ghostdev.huntit.ui.theme.patrickHandFont
 import com.ghostdev.huntit.ui.theme.patrickHandScFont
 import com.ghostdev.huntit.ui.theme.testSohneFont
 
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
-private val GameGrey = Color(0xFFE5E5E5)
 
 @Composable
 fun GameRoomNameCard(
@@ -56,13 +54,11 @@ fun GameRoomNameCard(
                 .padding(16.dp),
             horizontalAlignment = Alignment.Start
         ) {
-            // Title row with 3D effect
             Row(
                 modifier = Modifier.wrapContentSize(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Icon with circular background
                 Box(
                     modifier = Modifier
                         .size(24.dp)
@@ -90,7 +86,6 @@ fun GameRoomNameCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Animated text field with focus effect
             GamifiedTextField(
                 value = roomName,
                 onValueChange = { if (it.length <= 30) onRoomNameChanged(it) },
@@ -127,7 +122,6 @@ private fun GamifiedTextField(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
 
-    // Animation for focus state
     val shadowElevation by animateFloatAsState(
         targetValue = if (isFocused) 8f else 4f,
         animationSpec = spring(dampingRatio = 0.6f),

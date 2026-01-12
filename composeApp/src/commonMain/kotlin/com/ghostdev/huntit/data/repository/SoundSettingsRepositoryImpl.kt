@@ -59,13 +59,6 @@ class DefaultSoundSettingsRepositoryImpl(
         // This is a platform-specific implementation that would handle
         // actual audio playback. In each platform-specific implementation,
         // this would interact with the respective audio playback system.
-        
-        // For common code, we just update the state
-        val isEnabled = _backgroundMusicEnabled.value
-        val volume = _musicVolume.value
-        
-        // Log current settings
-        println("Background music settings applied: enabled=$isEnabled, volume=$volume")
     }
     
     override fun getSoundEffectsVolume(): Flow<Float> = _soundEffectsVolume.asStateFlow()
@@ -78,9 +71,5 @@ class DefaultSoundSettingsRepositoryImpl(
     
     override suspend fun applyAllSoundSettings() {
         applyBackgroundMusicSettings()
-        // Apply other sound settings as needed
-        val soundEffectsEnabled = _soundEffectsEnabled.value
-        val soundEffectsVolume = _soundEffectsVolume.value
-        println("Sound effects settings applied: enabled=$soundEffectsEnabled, volume=$soundEffectsVolume")
     }
 }

@@ -45,10 +45,8 @@ import com.ghostdev.huntit.ui.theme.patrickHandFont
 import com.ghostdev.huntit.ui.theme.patrickHandScFont
 import com.ghostdev.huntit.ui.theme.testSohneFont
 
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
-private val GameGrey = Color(0xFFE5E5E5)
 private val GameShadowHeight = 2.dp
 
 @Composable
@@ -84,13 +82,11 @@ fun GameThemeCard(
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Title row with 3D effect
             Row(
                 modifier = Modifier.wrapContentSize(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Icon with circular background
                 Box(
                     modifier = Modifier
                         .size(24.dp)
@@ -116,14 +112,12 @@ fun GameThemeCard(
                 )
             }
 
-            // Selected theme display with 3D effect
             val currentTheme = themes[selectedThemeId]
             GamifiedThemeBox(
                 theme = currentTheme,
                 isSelected = true
             )
 
-            // Theme selection horizontal row
             Text(
                 text = "Choose a theme:",
                 style = TextStyle(
@@ -169,13 +163,11 @@ private fun GamifiedThemeBox(
     theme: GameTheme,
     isSelected: Boolean
 ) {
-    // Main Card with shadow effect
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight()
     ) {
-        // Shadow layer
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -185,7 +177,6 @@ private fun GamifiedThemeBox(
                 .background(GameBlack.copy(alpha = 0.2f))
         )
 
-        // Content layer
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -201,7 +192,6 @@ private fun GamifiedThemeBox(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Theme Icon in a circular container
                 Box(
                     modifier = Modifier
                         .size(56.dp)
@@ -217,7 +207,6 @@ private fun GamifiedThemeBox(
                     )
                 }
 
-                // Theme details
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -244,7 +233,6 @@ private fun GamifiedThemeBox(
                     )
                 }
 
-                // Selected indicator
                 if (isSelected) {
                     Box(
                         modifier = Modifier
@@ -278,14 +266,12 @@ private fun ThemeSelectionItem(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Animated scale effect for interactive feedback
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.92f else 1f,
         animationSpec = spring(dampingRatio = 0.4f),
         label = "ThemeScale"
     )
 
-    // Offset for 3D button effect
     val offsetY by animateDpAsState(
         targetValue = if (isPressed) GameShadowHeight else 0.dp,
         animationSpec = spring(dampingRatio = 0.4f),
@@ -297,7 +283,6 @@ private fun ThemeSelectionItem(
             .wrapContentSize()
             .scale(scale)
     ) {
-        // Shadow (static at bottom)
         Box(
             modifier = Modifier
                 .size(70.dp)
@@ -305,7 +290,6 @@ private fun ThemeSelectionItem(
                 .background(GameBlack)
         )
 
-        // Main button (moves when pressed)
         Box(
             modifier = Modifier
                 .size(70.dp)
@@ -324,7 +308,6 @@ private fun ThemeSelectionItem(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Theme icon
                 Image(
                     modifier = Modifier
                         .size(36.dp),

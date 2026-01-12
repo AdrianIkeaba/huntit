@@ -10,7 +10,6 @@ import kotlinx.coroutines.launch
 class SoundSettingsViewModel(
     private val soundSettingsRepository: SoundSettingsRepository
 ) : ViewModel() {
-    // viewModelScope is inherited from ViewModel
     
     // State flows for the UI
     val backgroundMusicEnabled = soundSettingsRepository.getBackgroundMusicEnabled()
@@ -42,7 +41,6 @@ class SoundSettingsViewModel(
         )
     
     init {
-        // Apply sound settings when the ViewModel is initialized
         viewModelScope.launch {
             soundSettingsRepository.applyAllSoundSettings()
         }
@@ -72,13 +70,11 @@ class SoundSettingsViewModel(
             soundSettingsRepository.setSoundEffectsVolume(volume)
         }
     }
-    
-    // Apply settings when needed (e.g., when returning to the app)
+
     fun applyAllSettings() {
         viewModelScope.launch {
             soundSettingsRepository.applyAllSoundSettings()
         }
     }
-    
-    // No need for onCleared in this implementation
+
 }

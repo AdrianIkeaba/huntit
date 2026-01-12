@@ -11,6 +11,7 @@ import com.ghostdev.huntit.ui.screens.onboarding.OnboardingScreen
 import com.ghostdev.huntit.ui.screens.onboarding.ForgotPasswordScreen
 import com.ghostdev.huntit.ui.screens.onboarding.SignInScreen
 import com.ghostdev.huntit.ui.screens.onboarding.UserNameScreen
+import com.ghostdev.huntit.utils.SnackbarManager
 import org.koin.compose.koinInject
 
 fun NavGraphBuilder.onboardingGraph(
@@ -21,8 +22,6 @@ fun NavGraphBuilder.onboardingGraph(
     expiresIn: Long? = null
 ) {
     navigation<NavDestinations.OnboardingGraph>(
-        // Each navigation branch starts with a specific route defined here
-        // onboarding flows use Onboarding as the entry, sign-in uses SignIn
         startDestination = NavDestinations.OnboardingGraph.Onboarding
     ) {
         composable<NavDestinations.OnboardingGraph.Onboarding> {
@@ -37,9 +36,7 @@ fun NavGraphBuilder.onboardingGraph(
         }
 
         composable<NavDestinations.OnboardingGraph.SignIn> {
-            // Inject RoomCodeStorage to store room codes for navigation
             val roomCodeStorage = koinInject<com.ghostdev.huntit.data.local.RoomCodeStorage>()
-            // Access SnackbarManager singleton directly instead of injecting it
 
             SignInScreen(
                 innerPadding = innerPadding,
@@ -84,7 +81,7 @@ fun NavGraphBuilder.onboardingGraph(
                     }
                 },
                 showGameEndedMessage = {
-                    com.ghostdev.huntit.utils.SnackbarManager.instance.showMessage("Your previous game has ended.")
+                    SnackbarManager.instance.showMessage("Your previous game has ended.")
                 }
             )
         }

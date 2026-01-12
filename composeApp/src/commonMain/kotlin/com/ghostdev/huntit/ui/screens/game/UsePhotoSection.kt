@@ -35,9 +35,7 @@ import com.ghostdev.huntit.ui.theme.MainYellow
 import com.ghostdev.huntit.ui.theme.patrickHandFont
 import com.ghostdev.huntit.ui.theme.testSohneFont
 
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
-private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
 private val GameShadowHeight = 4.dp
 
@@ -79,8 +77,7 @@ fun UsePhotoSection(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
         }
-        
-        // Use Photo button (primary action)
+
         GamifiedActionButton(
             text = if (isEnabled) "USE PHOTO" else "TOO LATE",
             bgColor = if (isEnabled) MainYellow else Color.Gray,
@@ -88,8 +85,7 @@ fun UsePhotoSection(
             modifier = Modifier.fillMaxWidth(0.8f),
             enabled = isEnabled
         )
-        
-        // Try Again button (secondary action)
+
         GamifiedActionButton(
             text = "TRY AGAIN",
             bgColor = GameGrey,
@@ -110,14 +106,12 @@ private fun GamifiedActionButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Animate the vertical offset for the physical "push down" effect
     val offsetY by animateDpAsState(
         targetValue = if (isPressed && enabled) GameShadowHeight else 0.dp,
-        animationSpec = spring(dampingRatio = 0.4f), // Bouncy spring for tactile feel
+        animationSpec = spring(dampingRatio = 0.4f),
         label = "ButtonOffset"
     )
 
-    // Adjust colors for disabled state
     val buttonColor = if (enabled) bgColor else bgColor.copy(alpha = 0.6f)
     val borderColor = if (enabled) GameBlack else GameBlack.copy(alpha = 0.4f)
     val shadowColor = if (enabled) GameBlack else GameBlack.copy(alpha = 0.3f)
@@ -125,15 +119,14 @@ private fun GamifiedActionButton(
 
     Box(
         modifier = modifier
-            .height(58.dp) // Total height reserved including shadow space
+            .height(58.dp)
             .clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,
-                indication = null, // No ripple, using custom animation
+                indication = null,
                 onClick = onClick
             )
     ) {
-        // Shadow Layer (Static at bottom)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -142,7 +135,6 @@ private fun GamifiedActionButton(
                 .background(shadowColor, RoundedCornerShape(16.dp))
         )
 
-        // Button Layer (Moves when pressed)
         Box(
             modifier = Modifier
                 .offset(y = offsetY)

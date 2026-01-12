@@ -17,7 +17,6 @@ fun NavGraphBuilder.gameGraph(
     navController: NavController,
     innerPadding: PaddingValues
 ) {
-    // We'll use the proper scope for shared viewmodels
     navigation<NavDestinations.GameGraph>(
         startDestination = NavDestinations.GameGraph.Game
     ) {
@@ -50,7 +49,7 @@ fun NavGraphBuilder.gameGraph(
 
             // Get challenge and print it for debugging
             val challenge = gameState.currentChallenge
-            println("Challenge from GameViewModel: '$challenge'")
+
 
             // If challenge is blank, try to trigger loading it
             if (challenge.isBlank() && gameState.gameRoom?.id != null) {
@@ -105,13 +104,8 @@ fun NavGraphBuilder.gameGraph(
         }
 
         composable<NavDestinations.GameGraph.Review> {
-            // Use koinInject again but because we're in the same Koin scope,
-            // we'll get the same instance as in PhotoScreen
             val submissionViewModel: SubmissionViewModel = koinInject()
 
-            println("Navigated to Review Screen with review data: ${submissionViewModel.getReviewData()}")
-
-            // Use the PhotoReviewScreen
             PhotoReviewScreen(
                 innerPadding = innerPadding,
                 viewModel = submissionViewModel,

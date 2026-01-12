@@ -5,17 +5,14 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.storage.storage
 import io.ktor.client.call.body
-import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import io.ktor.http.Headers
-import io.ktor.http.HttpHeaders
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 class SubmissionRepositoryImpl(
     private val client: SupabaseClient
@@ -42,7 +39,6 @@ class SubmissionRepositoryImpl(
             val publicUrl = bucket.publicUrl(fileName)
             Result.success(publicUrl)
         } catch (e: Exception) {
-            println("Error uploading image: ${e.message}")
             Result.failure(e)
         }
     }
@@ -63,9 +59,6 @@ class SubmissionRepositoryImpl(
         roundNumber: Int?
     ): Result<VerificationResult> {
         return try {
-            // Log important info for debugging
-            println("Verifying photo for challenge: \"$challengeText\", theme: $theme")
-            println("Image base64 length: ${imageBase64.length} chars")
 
             // Make sure the base64 string doesn't have any prefixes
             var cleanBase64 = imageBase64
@@ -78,10 +71,6 @@ class SubmissionRepositoryImpl(
             if (remainder > 0) {
                 cleanBase64 += "=".repeat(4 - remainder)
             }
-
-            // Log base64 details for debugging
-            println("Base64 length after cleaning: ${cleanBase64.length}")
-            println("First 20 chars: ${cleanBase64.take(20)}...")
 
             val response = client.functions.invoke(
                 function = "verify-submission",
@@ -96,7 +85,6 @@ class SubmissionRepositoryImpl(
             )
 
             val responseBody = response.body<String>()
-            println("Verify submission response: $responseBody")
 
             try {
                 val verifyResponse = json.decodeFromString<VerifySubmissionResponse>(responseBody)
@@ -110,11 +98,6 @@ class SubmissionRepositoryImpl(
                         )
                     )
                 } else {
-                    // Log detailed error for debugging
-                    println("Error verifying photo: ${verifyResponse.error}")
-                    println("URL: https://actohkyaftjkgpjpgpil.supabase.co/functions/v1/verify-submission")
-                    println("Http Method: POST")
-
                     Result.success(
                         VerificationResult(
                             isValid = false,
@@ -124,8 +107,6 @@ class SubmissionRepositoryImpl(
                     )
                 }
             } catch (jsonEx: Exception) {
-                println("Error parsing response JSON: ${jsonEx.message}")
-                println("Raw response body: $responseBody")
 
                 Result.success(
                     VerificationResult(
@@ -136,17 +117,6 @@ class SubmissionRepositoryImpl(
                 )
             }
         } catch (e: Exception) {
-            // Log detailed network error
-            println("Error verifying photo: ${e.message}")
-            println("URL: https://actohkyaftjkgpjpgpil.supabase.co/functions/v1/verify-submission")
-
-            try {
-                val headers = e.toString()
-                println("Headers: $headers")
-            } catch (ex: Exception) { /* ignore */
-            }
-
-            println("Http Method: POST")
 
             // Return a default failure result if verification fails
             Result.success(
@@ -196,7 +166,6 @@ class SubmissionRepositoryImpl(
                 Result.success(submissions.first())
             }
         } catch (e: Exception) {
-            println("Error submitting round: ${e.message}")
             Result.failure(e)
         }
     }
@@ -234,7 +203,6 @@ class SubmissionRepositoryImpl(
                 Result.success(submissions.first())
             }
         } catch (e: Exception) {
-            println("Error skipping round: ${e.message}")
             Result.failure(e)
         }
     }
@@ -255,7 +223,6 @@ class SubmissionRepositoryImpl(
 
             Result.success(submissions.sortedBy { it.roundNumber })
         } catch (e: Exception) {
-            println("Error getting user submissions: ${e.message}")
             Result.failure(e)
         }
     }

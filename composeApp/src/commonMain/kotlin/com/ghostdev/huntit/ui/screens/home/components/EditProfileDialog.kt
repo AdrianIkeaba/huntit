@@ -58,12 +58,10 @@ import huntit.composeapp.generated.resources.Res
 import huntit.composeapp.generated.resources.logout
 import org.jetbrains.compose.resources.painterResource
 
-// Consistent Game Colors
 private val GameBlack = Color(0xFF1A1A1A)
 private val GameWhite = Color(0xFFFFFFFF)
 private val GameInputBg = Color(0xFFF7F7F7)
 private val GameGrey = Color(0xFFE5E5E5)
-private val GameShadowHeight = 4.dp
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -80,18 +78,15 @@ fun EditProfileDialog(
     Dialog(
         onDismissRequest = onDismiss
     ) {
-        // Dialog Box with 3D effect
         Box(modifier = Modifier.fillMaxWidth()) {
-            // Shadow Layer (bottom part)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 6.dp) // Push down to create depth
+                    .padding(top = 6.dp)
                     .shadow(8.dp, RoundedCornerShape(20.dp))
                     .background(GameBlack, RoundedCornerShape(20.dp))
             )
 
-            // Main Content Layer (top part)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -163,7 +158,7 @@ fun EditProfileDialog(
                 BasicTextField(
                     value = displayName,
                     onValueChange = {
-                        if (it.length <= 20) { // Set a reasonable character limit
+                        if (it.length <= 20) {
                             displayName = it
                         }
                     },
@@ -299,7 +294,6 @@ fun AvatarOption(
     val isPressed by interactionSource.collectIsPressedAsState()
     val audioPlayer = LocalAudioPlayer.current
 
-    // Animate the vertical offset (pushing down)
     val offsetY by animateDpAsState(
         targetValue = if (isPressed) 2.dp else 0.dp,
         animationSpec = spring(dampingRatio = 0.4f),
@@ -320,7 +314,6 @@ fun AvatarOption(
                 }
             )
     ) {
-        // Shadow Layer
         Box(
             modifier = Modifier
                 .size(52.dp)
@@ -329,7 +322,6 @@ fun AvatarOption(
                 .background(GameBlack, CircleShape)
         )
 
-        // Avatar Layer
         Image(
             painter = painterResource(HomeViewModel.getProfilePictureById(avatarId)),
             contentDescription = "Avatar Option $avatarId",

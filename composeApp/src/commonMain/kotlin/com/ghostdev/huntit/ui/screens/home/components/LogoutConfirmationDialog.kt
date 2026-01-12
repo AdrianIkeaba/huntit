@@ -42,18 +42,15 @@ fun LogoutConfirmationDialog(
     onConfirmLogout: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        // Dialog Box with 3D effect
         Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            // Shadow Layer (bottom part)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 6.dp) // Push down to create depth
+                    .padding(top = 6.dp)
                     .shadow(8.dp, RoundedCornerShape(20.dp))
                     .background(GameBlack, RoundedCornerShape(20.dp))
             )
 
-            // Main Content Layer (top part)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -62,7 +59,6 @@ fun LogoutConfirmationDialog(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Warning Icon - Represented as a simple red circle with an exclamation mark
                 Box(
                     modifier = Modifier
                         .background(MainRed.copy(alpha = 0.1f), CircleShape)
