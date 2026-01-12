@@ -205,8 +205,3 @@ Huntit/
    - Check Supabase connectivity
    - Ensure permissions are granted for camera access
 
-## Acknowledgments
-
-- Built with ❤️ by GhostDev
-- Powered by Kotlin Multiplatform and Jetpack Compose
-- Backend services by Supabase
