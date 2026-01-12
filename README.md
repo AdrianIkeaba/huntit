@@ -70,7 +70,7 @@ Before getting started, ensure you have the following installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/huntit.git
+git clone https://github.com/AdrianIkeaba/huntit.git
 cd huntit
 ```
 
