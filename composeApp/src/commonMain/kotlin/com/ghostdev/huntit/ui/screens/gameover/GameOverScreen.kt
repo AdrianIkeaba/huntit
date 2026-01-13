@@ -219,12 +219,12 @@ fun ScreenHeader(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 24.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left: Room Info Pill
         Box(
             modifier = Modifier
+                .weight(0.35f)
                 .clip(RoundedCornerShape(30.dp))
                 .background(Color.White)
                 .border(1.5.dp, GameBlack, RoundedCornerShape(30.dp))
@@ -243,23 +243,29 @@ fun ScreenHeader(
             )
         }
 
-        // Center: Title (Optional, can be removed if too crowded)
-        Text(
-            text = "LEADERBOARD",
-            style = TextStyle(
-                fontFamily = testSohneFont(),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Black,
-                color = GameBlack
-            ),
-            modifier = Modifier.padding(horizontal = 8.dp)
-        )
-
-        // Right: Close Button (Styled like the Info button in GameScreen)
         Box(
-            modifier = Modifier.size(40.dp)
+            modifier = Modifier
+                .weight(0.45f),
+            contentAlignment = Alignment.Center
         ) {
-            // Shadow
+            Text(
+                text = "LEADERBOARD",
+                style = TextStyle(
+                    fontFamily = testSohneFont(),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Black,
+                    color = GameBlack
+                ),
+                maxLines = 1
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .weight(0.2f, fill = false)
+                .size(40.dp)
+                .align(Alignment.CenterVertically)
+        ) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -267,7 +273,6 @@ fun ScreenHeader(
                     .clip(CircleShape)
                     .background(GameBlack.copy(alpha = 0.3f), CircleShape)
             )
-            // Button
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -303,7 +308,6 @@ fun WinnersPodiumNew(topPlayers: List<LeaderboardEntry>) {
         topPlayers
     }
 
-    // Order: 2nd (Left), 1st (Center), 3rd (Right)
     val podiumOrder = listOf(paddedList.getOrNull(1), paddedList.getOrNull(0), paddedList.getOrNull(2))
 
     Row(

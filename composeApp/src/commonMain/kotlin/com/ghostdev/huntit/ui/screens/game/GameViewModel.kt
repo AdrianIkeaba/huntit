@@ -233,7 +233,19 @@ class GameViewModel(
             
             _state.update { it.copy(isLoading = false) }
             
-            hasCompletedInitialization = true
+            // Only set initialization as complete if the game has a valid phase
+            // This prevents premature navigation due to race conditions during startup
+            val currentPhase = gameRoom.currentPhase
+            if (currentPhase != null && 
+                (currentPhase == GamePhase.LOBBY || 
+                 currentPhase == GamePhase.IN_PROGRESS || 
+                 currentPhase == GamePhase.COOLDOWN)) {
+                hasCompletedInitialization = true
+            } else {
+                // Delay setting initialization complete to give time for valid game state to be received
+                kotlinx.coroutines.delay(1000)
+                hasCompletedInitialization = true
+            }
 
         } catch (e: Exception) {
             _state.update {
@@ -502,9 +514,14 @@ class GameViewModel(
         }
 
         // Only check game finished status after initial load is complete
+        // AND after a reasonable delay to allow gameplay to begin
         if (hasCompletedInitialization) {
-            // Check if game is finished
-            if (gameRoom.status == GameStatus.FINISHED || gameRoom.currentPhase == GamePhase.FINISHED) {
+            // Make sure we don't immediately navigate to winners when the game just started
+            // This helps prevent the race condition causing premature navigation
+            val isGameJustStarted = previousPhase == GamePhase.LOBBY && gameRoom.currentPhase == GamePhase.IN_PROGRESS
+            
+            // Check if game is finished AND it's not just transitioning from LOBBY to IN_PROGRESS
+            if ((gameRoom.status == GameStatus.FINISHED || gameRoom.currentPhase == GamePhase.FINISHED) && !isGameJustStarted) {
                 _state.update { it.copy(shouldNavigateToWinners = true) }
                 return
             }
@@ -714,10 +731,17 @@ class GameViewModel(
                 // Get the current room ID
                 val roomId = currentRoomId ?: return@launch
                 
-
+                // Reset the initialization state on foreground to ensure fresh state evaluation
+                // This helps prevent the premature navigation bug when app comes back to foreground
+                hasCompletedInitialization = false
                 
-                // Use our new method to force refresh ALL game data
+                // Use our method to force refresh ALL game data
                 forceRefreshAllGameData(roomId)
+                
+                // Add a small delay before marking initialization as complete again
+                // This ensures we have the latest state before making navigation decisions
+                delay(300)
+                hasCompletedInitialization = true
                 
                 // If the timer is at 0:00, check if we need to force an advance
                 if (_state.value.timeRemainingMs <= 0 && _state.value.phaseEndsAt == null) {
@@ -757,7 +781,8 @@ class GameViewModel(
      */
     @OptIn(ExperimentalTime::class)
     fun handleUserReturnedToScreen() {
-
+        // Reset initialization flag immediately to prevent any premature navigation
+        hasCompletedInitialization = false
         
         viewModelScope.launch {
             try {
@@ -770,6 +795,11 @@ class GameViewModel(
                 // Use our comprehensive refresh method to update all game data including scores
                 forceRefreshAllGameData(roomId)
                 
+                // Check the current game phase
+                val currentPhase = _state.value.currentPhase
+                val isGameJustStarted = currentPhase == GamePhase.IN_PROGRESS && 
+                                      _state.value.currentRound == 1
+                
                 // If timer is at zero and there's no phase end time, might be stuck between phases
                 if (_state.value.timeRemainingMs <= 0 && _state.value.phaseEndsAt == null) {
                     
@@ -781,9 +811,23 @@ class GameViewModel(
                     forceRefreshAllGameData(roomId)
                 }
                 
+                // Add a short delay before setting initialization complete
+                // This gives time for the game state to stabilize
+                delay(300)
+                
                 // Set initialization flag after returning to screen
+                // If the game just started, we need to be extra careful about not redirecting to winners
+                if (isGameJustStarted) {
+                    // Extra protection for game-just-started scenario
+                    delay(500)
+                }
+                
                 hasCompletedInitialization = true
             } catch (e: Exception) {
+                // Still set initialization flag even if there's an exception
+                // to prevent getting stuck in an uninitialized state
+                delay(500)
+                hasCompletedInitialization = true
             }
         }
     }

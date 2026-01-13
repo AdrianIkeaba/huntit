@@ -216,8 +216,21 @@ fun GameScreen(
     LaunchedEffect(state.shouldNavigateToWinners) {
         if (state.shouldNavigateToWinners) {
             try {
-                viewModel.onWinnersNavigationHandled()
-                navigateToWinners()
+                val gameRoom = state.gameRoom
+                val currentRound = state.currentRound
+                val currentPhase = state.currentPhase
+                val isLikelyStartingGame = currentRound <= 1 && 
+                                         (currentPhase == GamePhase.IN_PROGRESS ||
+                                          currentPhase == GamePhase.LOBBY)
+
+                if (!isLikelyStartingGame) {
+                    viewModel.onWinnersNavigationHandled()
+                    navigateToWinners()
+                } else {
+                    viewModel.onWinnersNavigationHandled()
+                    delay(500)
+                    viewModel.handleUserReturnedToScreen()
+                }
             } catch (e: Exception) {
                 delay(500)
                 try {
