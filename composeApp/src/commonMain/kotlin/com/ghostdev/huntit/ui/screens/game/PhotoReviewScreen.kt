@@ -147,44 +147,6 @@ fun PhotoReviewScreen(
                     .padding(horizontal = 24.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 16.dp, end = 16.dp),
-                    contentAlignment = Alignment.TopEnd
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .shadow(elevation = 4.dp, shape = CircleShape)
-                            .background(GameWhite, CircleShape)
-                            .border(1.dp, GameBlack, CircleShape)
-                            .clickable {
-                                preventFurtherNavigation.value = true
-                                expectedDisposal.value = true
-                                
-                                val dataCleanupScope = MainScope()
-                                navigateToGame()
-                                
-                                dataCleanupScope.launch {
-                                    try {
-                                        delay(500)
-                                        viewModel.clearReviewData()
-                                    } catch (e: Exception) {
-                                    }
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.close),
-                            contentDescription = "Close",
-                            tint = GameBlack,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-                
                 val submissionState = viewModel.getReviewState()
                 
                 if (submissionState is SubmissionState.Error) {
@@ -310,6 +272,44 @@ fun PhotoReviewScreen(
                                 )
                             )
                         }
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 16.dp, end = 16.dp),
+                    contentAlignment = Alignment.TopEnd
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .shadow(elevation = 4.dp, shape = CircleShape)
+                            .background(GameWhite, CircleShape)
+                            .border(1.dp, GameBlack, CircleShape)
+                            .clickable {
+                                preventFurtherNavigation.value = true
+                                expectedDisposal.value = true
+
+                                val dataCleanupScope = MainScope()
+                                navigateToGame()
+
+                                dataCleanupScope.launch {
+                                    try {
+                                        delay(500)
+                                        viewModel.clearReviewData()
+                                    } catch (e: Exception) {
+                                    }
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.close),
+                            contentDescription = "Close",
+                            tint = GameBlack,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
             }
