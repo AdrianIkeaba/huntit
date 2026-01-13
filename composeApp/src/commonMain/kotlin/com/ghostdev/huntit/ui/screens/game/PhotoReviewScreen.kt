@@ -51,6 +51,7 @@ import com.ghostdev.huntit.ui.theme.testSohneFont
 import com.ghostdev.huntit.utils.LocalAudioPlayer
 import huntit.composeapp.generated.resources.Res
 import huntit.composeapp.generated.resources.reset
+import huntit.composeapp.generated.resources.close
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -62,6 +63,7 @@ private val GameWhite = Color(0xFFFFFFFF)
 private val GameGrey = Color(0xFFE5E5E5)
 private val GameShadowHeight = 4.dp
 
+@OptIn(kotlin.time.ExperimentalTime::class)
 @Composable
 fun PhotoReviewScreen(
     innerPadding: PaddingValues,
@@ -105,14 +107,22 @@ fun PhotoReviewScreen(
             }
         }
     }
+
+    val phaseEndsAtMs = viewModel.getCachedPhaseEndsAtMs()
     
     LaunchedEffect(gameState.timeRemainingMs) {
-        if (gameState.timeRemainingMs <= 0 && !preventFurtherNavigation.value) {
+        val currentTimeMs = kotlin.time.Clock.System.now().toEpochMilliseconds()
+        val isPhaseActuallyEnded = phaseEndsAtMs in 1..currentTimeMs
+        val isTimerAtZero = gameState.timeRemainingMs <= 0
+        
+        if ((isTimerAtZero && isPhaseActuallyEnded) && !preventFurtherNavigation.value) {
+            // Add a longer delay to avoid immediate transition
             delay(6500)
             wrappedNavigateToGame()
         }
     }
     
+    // KEEP: #2 - Game finishing navigation
     LaunchedEffect(gameState.shouldNavigateToWinners) {
         if (gameState.shouldNavigateToWinners) {
             expectedDisposal.value = true
@@ -127,12 +137,6 @@ fun PhotoReviewScreen(
         onDispose {
         }
     }
-    
-    LaunchedEffect(gameState.shouldNavigateToWinners) {
-        if (gameState.shouldNavigateToWinners) {
-            expectedDisposal.value = true
-        }
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AnimatedBackground(modifier = Modifier.fillMaxSize()) {
@@ -143,6 +147,44 @@ fun PhotoReviewScreen(
                     .padding(horizontal = 24.dp),
                 contentAlignment = Alignment.Center
             ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 16.dp, end = 16.dp),
+                    contentAlignment = Alignment.TopEnd
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .shadow(elevation = 4.dp, shape = CircleShape)
+                            .background(GameWhite, CircleShape)
+                            .border(1.dp, GameBlack, CircleShape)
+                            .clickable {
+                                preventFurtherNavigation.value = true
+                                expectedDisposal.value = true
+                                
+                                val dataCleanupScope = MainScope()
+                                navigateToGame()
+                                
+                                dataCleanupScope.launch {
+                                    try {
+                                        delay(500)
+                                        viewModel.clearReviewData()
+                                    } catch (e: Exception) {
+                                    }
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.close),
+                            contentDescription = "Close",
+                            tint = GameBlack,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                
                 val submissionState = viewModel.getReviewState()
                 
                 if (submissionState is SubmissionState.Error) {

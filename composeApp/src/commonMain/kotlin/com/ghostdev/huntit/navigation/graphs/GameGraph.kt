@@ -13,6 +13,7 @@ import com.ghostdev.huntit.ui.screens.game.PhotoScreen
 import com.ghostdev.huntit.ui.screens.game.SubmissionViewModel
 import org.koin.compose.koinInject
 
+@OptIn(kotlin.time.ExperimentalTime::class)
 fun NavGraphBuilder.gameGraph(
     navController: NavController,
     innerPadding: PaddingValues
@@ -73,6 +74,11 @@ fun NavGraphBuilder.gameGraph(
             val roomId = gameState.gameRoom?.id
             val userId = gameState.currentUserId
             if (roomId != null && userId.isNotEmpty()) {
+                // Use phaseEndsAt from gameRoom if available (absolute timestamp)
+                // or calculate it from current time + timeRemainingMs (relative to current time)
+                val phaseEndsAtMs = gameState.phaseEndsAt?.toEpochMilliseconds() 
+                    ?: (kotlin.time.Clock.System.now().toEpochMilliseconds() + gameState.timeRemainingMs)
+                
                 submissionViewModel.initialize(
                     roomId = roomId,
                     userId = userId,
@@ -80,7 +86,7 @@ fun NavGraphBuilder.gameGraph(
                     challenge = challenge,
                     theme = gameState.theme,
                     timeRemaining = timeRemaining,
-                    phaseEndsAtMs = gameState.timeRemainingMs
+                    phaseEndsAtMs = phaseEndsAtMs
                 )
             }
 

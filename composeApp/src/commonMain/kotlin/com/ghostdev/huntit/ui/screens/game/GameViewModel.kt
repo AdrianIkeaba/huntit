@@ -378,8 +378,6 @@ class GameViewModel(
             val serverTimeResult = gameRepository.getServerTime()
             val serverTime = serverTimeResult.getOrNull() ?: Clock.System.now()
 
-            // Calculate initial remaining time with network latency buffer compensation
-            // The buffer accounts for the delay between server setting phase_ends_at
             val remaining = phaseEndsAt - serverTime
             val remainingMs = (remaining.inWholeMilliseconds + NETWORK_LATENCY_BUFFER_MS).coerceAtLeast(0L)
             
@@ -388,8 +386,6 @@ class GameViewModel(
 
             // Update last sync time
             lastTimerSyncInstant = Clock.System.now()
-            
-
 
             // Update the state with initial time
             _state.update { it.copy(timeRemainingMs = remainingMs) }
