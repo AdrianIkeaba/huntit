@@ -1,4 +1,4 @@
-# Huntit
+# Huntit -  Kotlin Conf Contest 2026 Winner
 <img width="256" height="256" alt="Hunt it(1)" src="https://github.com/user-attachments/assets/830f0cca-b6eb-47c1-9f3d-0d07e4e8d774" />
 
 ## Overview
