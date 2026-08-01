@@ -28,8 +28,12 @@ data class HomeUiState(
     val successMessage: String? = null,
     val showProfileDialog: Boolean = false,
     val showLogoutConfirmation: Boolean = false,
+    val showPrivacyAndSafety: Boolean = false,
+    val showDeleteAccountConfirmation: Boolean = false,
     val isLoggingOut: Boolean = false,
-    val logoutComplete: Boolean = false
+    val isDeletingAccount: Boolean = false,
+    val logoutComplete: Boolean = false,
+    val accountDeleted: Boolean = false
 )
 
 class HomeViewModel(private val authRepository: AuthRepository) : ViewModel() {
@@ -150,6 +154,58 @@ class HomeViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     fun hideLogoutConfirmation() {
         _uiState.update { it.copy(showLogoutConfirmation = false) }
+    }
+
+    fun showPrivacyAndSafety() {
+        _uiState.update {
+            it.copy(showPrivacyAndSafety = true, showProfileDialog = false)
+        }
+    }
+
+    fun hidePrivacyAndSafety() {
+        _uiState.update { it.copy(showPrivacyAndSafety = false) }
+    }
+
+    fun showDeleteAccountConfirmation() {
+        _uiState.update {
+            it.copy(
+                showDeleteAccountConfirmation = true,
+                showProfileDialog = false
+            )
+        }
+    }
+
+    fun hideDeleteAccountConfirmation() {
+        if (!_uiState.value.isDeletingAccount) {
+            _uiState.update { it.copy(showDeleteAccountConfirmation = false) }
+        }
+    }
+
+    fun deleteAccount() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDeletingAccount = true, errorMessage = null) }
+            authRepository.deleteAccount().fold(
+                onSuccess = {
+                    _uiState.update {
+                        it.copy(
+                            isDeletingAccount = false,
+                            showDeleteAccountConfirmation = false,
+                            accountDeleted = true
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isDeletingAccount = false,
+                            showDeleteAccountConfirmation = false,
+                            errorMessage = error.message
+                                ?: "We could not delete your account. Please try again."
+                        )
+                    }
+                }
+            )
+        }
     }
 
     fun logout() {

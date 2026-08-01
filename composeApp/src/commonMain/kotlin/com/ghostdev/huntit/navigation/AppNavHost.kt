@@ -12,23 +12,20 @@ import com.ghostdev.huntit.navigation.graphs.lobbyGraph
 import com.ghostdev.huntit.navigation.graphs.onboardingGraph
 import com.ghostdev.huntit.navigation.graphs.splashGraph
 import com.ghostdev.huntit.utils.LocalDeepLinkHandler
-import kotlin.math.exp
 
 @Composable
 fun AppNavHost(
-    innerPadding: PaddingValues = PaddingValues(),
-    deepLinkAccessToken: String? = null
+    innerPadding: PaddingValues = PaddingValues()
 ) {
     val navController = rememberNavController()
     val deepLinkHandler = LocalDeepLinkHandler.current
+    val passwordResetRequest = deepLinkHandler.passwordResetRequest.value
 
-    val accessToken = deepLinkAccessToken ?: deepLinkHandler.accessToken.value
-    val refreshToken = deepLinkHandler.refreshToken.value
-    val expiresIn = deepLinkHandler.expiresIn.value
-
-    LaunchedEffect(accessToken) {
-        if (accessToken != null) {
-            navController.navigate(NavDestinations.OnboardingGraph.NewPassword)
+    LaunchedEffect(passwordResetRequest) {
+        if (passwordResetRequest != null) {
+            navController.navigate(NavDestinations.OnboardingGraph.NewPassword) {
+                launchSingleTop = true
+            }
         }
     }
 
@@ -37,7 +34,7 @@ fun AppNavHost(
         startDestination = NavDestinations.SplashGraph,
     ) {
         splashGraph(navController, innerPadding)
-        onboardingGraph(navController, innerPadding, accessToken, refreshToken, expiresIn)
+        onboardingGraph(navController, innerPadding)
         homeGraph(navController, innerPadding)
         lobbyGraph(navController, innerPadding)
         gameGraph(navController, innerPadding)

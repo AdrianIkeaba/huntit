@@ -25,7 +25,27 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlin.time.ExperimentalTime
+
+@Serializable
+private data class JoinGameRoomResponse(
+    val success: Boolean,
+    @SerialName("room_id") val roomId: String? = null,
+    val error: String? = null
+)
+
+@Serializable
+private data class CreateGameRoomResponse(
+    val success: Boolean,
+    @SerialName("room_id") val roomId: String? = null,
+    @SerialName("room_code") val roomCode: String? = null,
+    val error: String? = null
+)
 
 class GameSetupRepositoryImpl(
     private val client: SupabaseClient
@@ -52,74 +72,37 @@ class GameSetupRepositoryImpl(
         isPublic: Boolean
     ): Result<String> {
         try {
-            val currentUser = client.auth.currentUserOrNull()
-                ?: return Result.failure(
+            if (client.auth.currentUserOrNull() == null) {
+                return Result.failure(
                     Exception("User session does not exist.\nLog out and log in again.")
                 )
+            }
 
-            val roomCode = (100_000..999_999).random().toString()
-
-            val gameRoomDto = GameRoomDto(
-                roomCode = roomCode,
-                roomName = roomName,
-                hostId = currentUser.id,
-                theme = gameTheme,
-                roundDuration = roundDuration.durationName,
-                roundDurationSeconds = roundDuration.seconds,
-                totalRounds = totalRounds,
-                cooldownSeconds = cooldownSeconds,
-                maxPlayers = maxPlayers,
-                isPublic = isPublic,
-                phaseEndsAt = null
-            )
-
-            // Insert the game room and get back the created record
-            var createdRooms = client.postgrest["game_rooms"]
-                .insert(gameRoomDto) { select() }
-                .decodeList<GameRoomDto>()
-
-            // If that doesn't work, try fetching it with a retry mechanism
-            if (createdRooms.isEmpty()) {
-                // Add a short delay to allow database propagation
-                delay(500)
-
-                // Try to fetch the inserted room to get its ID
-                val fetchedRooms = client.postgrest["game_rooms"]
-                    .select(columns = Columns.ALL) {
-                        filter {
-                            eq("room_code", roomCode)
-                        }
+            val response = client.postgrest.rpc(
+                function = "create_game_room",
+                parameters = buildJsonObject {
+                    put("p_room_name", roomName)
+                    put("p_round_duration", roundDuration.durationName)
+                    put("p_theme", gameTheme.name.lowercase())
+                    if (maxPlayers == null) {
+                        put("p_max_players", JsonNull)
+                    } else {
+                        put("p_max_players", maxPlayers)
                     }
-                    .decodeList<GameRoomDto>()
-
-                if (fetchedRooms.isNotEmpty()) {
-                    createdRooms = fetchedRooms
+                    put("p_total_rounds", totalRounds)
+                    put("p_cooldown_seconds", cooldownSeconds)
+                    put("p_is_public", isPublic)
                 }
+            ).decodeAs<CreateGameRoomResponse>()
+
+            if (!response.success) {
+                return Result.failure(
+                    Exception(response.error ?: "Unable to create game room.")
+                )
             }
 
-            if (createdRooms.isEmpty()) {
-                return Result.failure(Exception("Room created but couldn't fetch details. Room code: $roomCode"))
-            }
-
-            val createdRoom = createdRooms.first()
-            val roomId = createdRoom.id ?: return Result.failure(Exception("Room ID is missing"))
-
-            // Add the host as a participant
-            val participantDto = GameParticipantDto(
-                roomId = roomId,
-                userId = currentUser.id,
-                isHost = true,
-                joinOrder = 1,
-                isPlaying = true  // Set is_playing to true when creating a game
-            )
-
-            try {
-                client.postgrest["game_participants"]
-                    .insert(participantDto)
-            } catch (e: Exception) {
-                println("Error inserting participant: ${e.message}")
-                e.printStackTrace()
-            }
+            val roomCode = response.roomCode
+                ?: return Result.failure(Exception("Room was created without a room code."))
 
             return Result.success(roomCode)
         } catch (e: Exception) {
@@ -130,73 +113,23 @@ class GameSetupRepositoryImpl(
     @OptIn(ExperimentalTime::class)
     override suspend fun joinGameRoom(roomCode: String): Result<String> {
         try {
-            val currentUser = client.auth.currentUserOrNull()
-                ?: return Result.failure(
+            if (client.auth.currentUserOrNull() == null) {
+                return Result.failure(
                     Exception("User session does not exist.\nLog out and log in again.")
                 )
+            }
 
-            val gameRooms = client.postgrest["game_rooms"]
-                .select(columns = Columns.ALL) {
-                    filter {
-                        eq("room_code", roomCode)
-                    }
+            val response = client.postgrest.rpc(
+                function = "join_game_room",
+                parameters = buildJsonObject {
+                    put("p_room_code", roomCode)
                 }
-                .decodeList<GameRoomDto>()
+            ).decodeAs<JoinGameRoomResponse>()
 
-            if (gameRooms.isEmpty()) {
-                return Result.failure(Exception("Game room not found."))
+            if (!response.success) {
+                return Result.failure(Exception(response.error ?: "Unable to join game room."))
             }
 
-            val gameRoom = gameRooms.first()
-
-            if (gameRoom.status != GameStatus.LOBBY) {
-                return Result.failure(Exception("Game has already started."))
-            }
-
-            val roomId = gameRoom.id
-                ?: return Result.failure(Exception("Game room ID is missing."))
-
-            val participants = client.postgrest["game_participants"]
-                .select(columns = Columns.ALL) {
-                    filter {
-                        eq("room_id", roomId)
-                    }
-                }
-                .decodeList<GameParticipantDto>()
-
-            // Check if room is full (only if maxPlayers is set)
-            if (gameRoom.maxPlayers != null && gameRoom.maxPlayers > 0 && participants.size >= gameRoom.maxPlayers) {
-                return Result.failure(Exception("Game room is full."))
-            }
-
-            // Check if user is already in the room
-            val existingParticipant = participants.find { it.userId == currentUser.id }
-            if (existingParticipant != null) {
-                // Update is_playing to true if they're rejoining
-                if (!existingParticipant.isPlaying) {
-                    client.postgrest["game_participants"]
-                        .update({
-                            set("is_playing", true)
-                        }) {
-                            filter {
-                                eq("room_id", gameRoom.id)
-                                eq("user_id", currentUser.id)
-                            }
-                        }
-                }
-                return Result.success(roomCode)
-            }
-
-            // Add user to participants
-            val participantDto = GameParticipantDto(
-                roomId = gameRoom.id,
-                userId = currentUser.id,
-                isHost = false,
-                joinOrder = participants.size + 1,
-                isPlaying = true  // Set is_playing to true when joining a game
-            )
-
-            client.postgrest["game_participants"].insert(participantDto)
             return Result.success(roomCode)
         } catch (e: Exception) {
             return Result.failure(e)
@@ -483,15 +416,8 @@ class GameSetupRepositoryImpl(
 
     override suspend fun deleteGame(roomId: String): Result<Unit> {
         return try {
-            // First, delete all participants
-            client.postgrest["game_participants"]
-                .delete {
-                    filter {
-                        eq("room_id", roomId)
-                    }
-                }
-
-            // Then, delete the game room
+            // Related participants, challenges, and submissions are removed by
+            // the database's ON DELETE CASCADE constraints.
             client.postgrest["game_rooms"]
                 .delete {
                     filter {

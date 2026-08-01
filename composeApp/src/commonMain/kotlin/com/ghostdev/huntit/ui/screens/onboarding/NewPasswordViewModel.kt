@@ -16,9 +16,7 @@ data class NewPasswordUiState(
     val successMessage: String? = null,
     val passwordMatchError: Boolean = false,
     val passwordResetSuccess: Boolean = false,
-    val accessToken: String? = null,
-    val refreshToken: String? = null,
-    val expiresIn: Long? = null
+    val recoveryCode: String? = null
 )
 
 class NewPasswordViewModel(
@@ -28,12 +26,10 @@ class NewPasswordViewModel(
     private val _uiState = MutableStateFlow(NewPasswordUiState())
     val uiState: StateFlow<NewPasswordUiState> = _uiState.asStateFlow()
 
-    // Set the access token received from the deep link
-    fun setTokens(accessToken: String?, refreshToken: String?, expiresIn: Long?) {
+    fun setRecoveryLink(recoveryCode: String?, linkError: String?) {
         _uiState.value = _uiState.value.copy(
-            accessToken = accessToken,
-            refreshToken = refreshToken,
-            expiresIn = expiresIn
+            recoveryCode = recoveryCode,
+            errorMessage = linkError
         )
     }
 
@@ -56,9 +52,7 @@ class NewPasswordViewModel(
     fun onResetPasswordClick() {
         val password = _uiState.value.password
         val confirmPassword = _uiState.value.confirmPassword
-        val accessToken = _uiState.value.accessToken
-        val refreshToken = _uiState.value.refreshToken
-        val expiresIn = _uiState.value.expiresIn
+        val recoveryCode = _uiState.value.recoveryCode
 
         // Validation
         if (password.isEmpty()) {
@@ -82,13 +76,8 @@ class NewPasswordViewModel(
         _uiState.value = _uiState.value.copy(isLoading = true)
 
         viewModelScope.launch {
-            if (accessToken != null && refreshToken != null && expiresIn != null) {
-                authRepository.resetPasswordWithTokens(
-                    accessToken,
-                    refreshToken,
-                    expiresIn,
-                    password
-                ).fold(
+            if (recoveryCode != null) {
+                authRepository.resetPasswordWithCode(recoveryCode, password).fold(
                     onSuccess = {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -106,7 +95,7 @@ class NewPasswordViewModel(
             } else {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Invalid reset link. Missing required tokens."
+                    errorMessage = "This reset link is invalid or expired. Request a new one."
                 )
             }
         }

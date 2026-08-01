@@ -17,8 +17,6 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 fun App() {
     val deepLinkHandler = DeepLinkHandler.instance
 
-
-
     CompositionLocalProvider(LocalDeepLinkHandler provides deepLinkHandler) {
         MaterialTheme(
             typography = patrickHandTypography()
@@ -27,10 +25,7 @@ fun App() {
                 modifier = Modifier
                     .fillMaxSize()
             ) { padding ->
-                AppNavHost(
-                    innerPadding = padding,
-                    deepLinkAccessToken = deepLinkHandler.accessToken.value
-                )
+                AppNavHost(innerPadding = padding)
             }
         }
     }

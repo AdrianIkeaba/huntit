@@ -16,10 +16,7 @@ import org.koin.compose.koinInject
 
 fun NavGraphBuilder.onboardingGraph(
     navController: NavController,
-    innerPadding: PaddingValues,
-    deepLinkAccessToken: String? = null,
-    deepLinkRefreshToken: String? = null,
-    expiresIn: Long? = null
+    innerPadding: PaddingValues
 ) {
     navigation<NavDestinations.OnboardingGraph>(
         startDestination = NavDestinations.OnboardingGraph.Onboarding
@@ -98,9 +95,6 @@ fun NavGraphBuilder.onboardingGraph(
         composable<NavDestinations.OnboardingGraph.NewPassword> {
             NewPasswordScreen(
                 innerPadding = innerPadding,
-                accessToken = deepLinkAccessToken,
-                refreshToken = deepLinkRefreshToken,
-                expiresIn = expiresIn,
                 navigateToLogin = {
                     navController.navigate(NavDestinations.OnboardingGraph.SignIn) {
                         launchSingleTop = true

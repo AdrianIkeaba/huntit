@@ -47,51 +47,24 @@ class ForgotPasswordViewModel(
             _uiState.value.copy(isLoading = true, errorMessage = null, successMessage = null)
 
         viewModelScope.launch {
-            // First, check if the user exists with this email
-            val userExistsResult = authRepository.checkUserExists(email)
-            
-            if (userExistsResult.isSuccess && userExistsResult.getOrNull() == true) {
-                // User exists, proceed with password reset
-                val result = authRepository.sendPasswordResetEmail(email)
-
-                if (result.isSuccess) {
+            // Always ask the auth service directly and use a generic response.
+            // A password-reset form must not reveal which emails are registered.
+            authRepository.sendPasswordResetEmail(email).fold(
+                onSuccess = { message ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         resetEmailSent = true,
-                        successMessage = result.getOrNull()
-                            ?: "Password reset email sent. Check your inbox for instructions."
+                        successMessage = message
                     )
-                } else {
-                    val errorMessage = result.exceptionOrNull()?.message ?: "Failed to send reset email"
-
-                    // If it specifically says the account doesn't exist, use our custom message
-                    val displayError = if (errorMessage.contains("No account found") ||
-                        errorMessage.contains("User not found")
-                    ) {
-                        "No account found with this email. Please sign up first."
-                    } else {
-                        errorMessage
-                    }
-
+                },
+                onFailure = { error ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = displayError
+                        errorMessage = error.message
+                            ?: "Unable to send a reset email right now. Please try again."
                     )
                 }
-            } else if (userExistsResult.isSuccess && userExistsResult.getOrNull() == false) {
-                // User does not exist
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = "No account found with this email. Please sign up first."
-                )
-            } else {
-                // Error checking if user exists
-                val errorMessage = userExistsResult.exceptionOrNull()?.message ?: "Failed to verify email"
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = errorMessage
-                )
-            }
+            )
         }
     }
 

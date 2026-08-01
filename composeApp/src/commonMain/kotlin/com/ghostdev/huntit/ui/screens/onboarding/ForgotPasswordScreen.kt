@@ -280,7 +280,7 @@ private fun ResetEmailSentContent(
                     Spacer(Modifier.height(16.dp))
 
                     Text(
-                        text = "We sent instructions to:",
+                        text = "If an account exists, we'll send instructions to:",
                         style = TextStyle(fontFamily = patrickHandFont(), fontSize = 16.sp),
                         color = GameBlack.copy(alpha = 0.6f),
                         textAlign = TextAlign.Center

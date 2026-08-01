@@ -13,7 +13,6 @@ import com.ghostdev.huntit.data.model.RoundSubmissionDto
 import com.ghostdev.huntit.data.model.SubmissionStatus
 import com.ghostdev.huntit.data.repository.GameRepository
 import com.ghostdev.huntit.data.repository.SubmissionRepository
-import com.ghostdev.huntit.data.repository.VerificationResult
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
@@ -621,7 +620,7 @@ class GameViewModel(
         val uncachedUserIds = userIds.filter { it !in profilesCache }
         if (uncachedUserIds.isNotEmpty()) {
             try {
-                val profiles = supabaseClient.postgrest["profiles"]
+                val profiles = supabaseClient.postgrest["player_profiles"]
                     .select(columns = Columns.ALL) {
                         filter { isIn("id", uncachedUserIds) }
                     }
@@ -950,8 +949,6 @@ class GameViewModel(
         val roomId = currentRoomId ?: return
         val userId = _state.value.currentUserId
         val currentRound = _state.value.currentRound
-        val challengeText = _state.value.currentChallenge
-        val theme = _state.value.theme
 
         viewModelScope.launch {
             try {
@@ -976,41 +973,25 @@ class GameViewModel(
                     return@launch
                 }
 
-                val imageUrl = uploadResult.getOrNull()!!
+                val imagePath = uploadResult.getOrNull()!!
 
-                // Step 2: Verify photo
+                // The server verifies the exact uploaded object and atomically
+                // commits the trusted result and score.
                 _state.update { it.copy(submissionState = SubmissionState.Verifying) }
 
-                // Convert image to base64 for verification
-                val imageBase64 = imageBytes.encodeToBase64()
-
-                val verifyResult = submissionRepository.verifyPhoto(
-                    imageBase64 = imageBase64,
-                    challengeText = challengeText,
-                    theme = theme
-                )
-
-                val verification = verifyResult.getOrNull() ?: VerificationResult(
-                    isValid = false,
-                    reason = "Verification failed",
-                    confidence = 0f
-                )
-
-                // Step 3: Submit round result
-                val submitResult = submissionRepository.submitRound(
+                val verifyResult = submissionRepository.verifyAndSubmitPhoto(
                     roomId = roomId,
-                    userId = userId,
                     roundNumber = currentRound,
-                    imageUrl = imageUrl,
-                    isSuccess = verification.isValid
+                    imagePath = imagePath
                 )
 
-                if (submitResult.isSuccess) {
+                if (verifyResult.isSuccess) {
+                    val verification = verifyResult.getOrThrow()
                     if (verification.isValid) {
                         _state.update {
                             it.copy(
                                 submissionState = SubmissionState.Success(
-                                    points = 2,
+                                    points = verification.pointsEarned,
                                     message = "Photo matches the challenge!"
                                 ),
                                 hasSubmittedCurrentRound = true,
@@ -1039,7 +1020,8 @@ class GameViewModel(
                     _state.update {
                         it.copy(
                             submissionState = SubmissionState.Error(
-                                submitResult.exceptionOrNull()?.message ?: "Submission failed"
+                                verifyResult.exceptionOrNull()?.message
+                                    ?: "Verification and submission failed"
                             )
                         )
                     }
@@ -1180,24 +1162,4 @@ enum class TimerStatus {
     NORMAL,
     WARNING,
     COOLDOWN
-}
-
-// Extension function to encode ByteArray to Base64
-private fun ByteArray.encodeToBase64(): String {
-    val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-    val result = StringBuilder()
-    var i = 0
-    while (i < size) {
-        val b0 = this[i].toInt() and 0xFF
-        val b1 = if (i + 1 < size) this[i + 1].toInt() and 0xFF else 0
-        val b2 = if (i + 2 < size) this[i + 2].toInt() and 0xFF else 0
-
-        result.append(chars[b0 shr 2])
-        result.append(chars[(b0 and 0x03 shl 4) or (b1 shr 4)])
-        result.append(if (i + 1 < size) chars[(b1 and 0x0F shl 2) or (b2 shr 6)] else '=')
-        result.append(if (i + 2 < size) chars[b2 and 0x3F] else '=')
-
-        i += 3
-    }
-    return result.toString()
 }

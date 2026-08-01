@@ -46,7 +46,7 @@ class LeaderboardRepositoryImpl(
         }
 
         return try {
-            val profiles = client.postgrest["profiles"]
+            val profiles = client.postgrest["player_profiles"]
                 .select(columns = Columns.ALL) {
                     filter {
                         isIn("id", userIds)

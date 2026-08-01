@@ -2,6 +2,27 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import java.util.Properties
 
+val huntitReleaseStoreFile = providers.environmentVariable("HUNTIT_UPLOAD_STORE_FILE").orNull
+val huntitReleaseStorePassword = providers.environmentVariable("HUNTIT_UPLOAD_STORE_PASSWORD").orNull
+val huntitReleaseKeyAlias = providers.environmentVariable("HUNTIT_UPLOAD_KEY_ALIAS").orNull
+val huntitReleaseKeyPassword = providers.environmentVariable("HUNTIT_UPLOAD_KEY_PASSWORD").orNull
+val huntitReleaseSigningConfigured = listOf(
+    huntitReleaseStoreFile,
+    huntitReleaseStorePassword,
+    huntitReleaseKeyAlias,
+    huntitReleaseKeyPassword
+).all { !it.isNullOrBlank() }
+val huntitReleaseArtifactRequested = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("bundleRelease", ignoreCase = true) ||
+        taskName.contains("assembleRelease", ignoreCase = true)
+}
+
+if (huntitReleaseArtifactRequested) {
+    require(huntitReleaseSigningConfigured) {
+        "Release signing is not configured. Run scripts/build-play-bundle.sh or provide the HUNTIT_UPLOAD_* environment variables."
+    }
+}
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidApplication)
@@ -175,8 +196,18 @@ android {
         applicationId = "com.ghostdev.huntit"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = providers.gradleProperty("huntitVersionCode").get().toInt()
+        versionName = providers.gradleProperty("huntitVersionName").get()
+    }
+    signingConfigs {
+        create("release") {
+            if (huntitReleaseSigningConfigured) {
+                storeFile = file(requireNotNull(huntitReleaseStoreFile))
+                storePassword = huntitReleaseStorePassword
+                keyAlias = huntitReleaseKeyAlias
+                keyPassword = huntitReleaseKeyPassword
+            }
+        }
     }
     packaging {
         resources {
@@ -185,7 +216,13 @@ android {
     }
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
     compileOptions {

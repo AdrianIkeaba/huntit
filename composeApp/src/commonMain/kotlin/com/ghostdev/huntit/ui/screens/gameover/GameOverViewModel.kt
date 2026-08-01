@@ -143,7 +143,7 @@ class GameOverViewModel(
         val uncachedUserIds = userIds.filter { it !in profilesCache }
         if (uncachedUserIds.isNotEmpty()) {
             try {
-                val profiles = supabaseClient.postgrest["profiles"]
+                val profiles = supabaseClient.postgrest["player_profiles"]
                     .select(columns = Columns.ALL) {
                         filter { isIn("id", uncachedUserIds) }
                     }

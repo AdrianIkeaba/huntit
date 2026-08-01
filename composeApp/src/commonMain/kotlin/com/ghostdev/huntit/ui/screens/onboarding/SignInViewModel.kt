@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 data class SignInUiState(
     val email: String = "",
     val password: String = "",
+    val eligibilityConfirmed: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val shouldNavigateToUserName: Boolean = false,
@@ -44,6 +45,13 @@ class SignInViewModel(
         _uiState.value = _uiState.value.copy(password = password, errorMessage = null)
     }
 
+    fun onEligibilityChange(confirmed: Boolean) {
+        _uiState.value = _uiState.value.copy(
+            eligibilityConfirmed = confirmed,
+            errorMessage = null
+        )
+    }
+
     fun onContinueClick() {
         val email = _uiState.value.email.trim()
         val password = _uiState.value.password
@@ -71,29 +79,30 @@ class SignInViewModel(
             return
         }
 
+        if (!_uiState.value.eligibilityConfirmed) {
+            _uiState.value = _uiState.value.copy(
+                errorMessage = "Confirm that you are 18 or older and accept the policies"
+            )
+            return
+        }
+
         _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
         viewModelScope.launch {
-            // First check if the user exists
-            val userExistsResult = authRepository.checkUserExists(email)
-
-            // If we couldn't determine if the user exists (e.g., due to network error),
-            // proceed with the login attempt
-            val userExists = userExistsResult.getOrDefault(true)
-
-            if (!userExists) {
-                // User doesn't exist, show dialog to create account
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    showCreateAccountDialog = true
-                )
-                return@launch
-            }
-
-            // User exists, try to login
+            // Do not query the public profiles table to discover whether an email
+            // exists. Attempt authentication directly so account membership is
+            // not exposed through the Data API.
             val loginResult = authRepository.login(email, password)
 
             if (loginResult.isSuccess) {
+                val eligibilityResult = authRepository.confirmEligibility()
+                if (eligibilityResult.isFailure) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = eligibilityResult.exceptionOrNull()?.message
+                    )
+                    return@launch
+                }
                 val user = loginResult.getOrNull()!!
 
                 if (user.displayName.isEmpty()) {
@@ -107,14 +116,20 @@ class SignInViewModel(
                     checkActiveGameAndNavigate()
                 }
             } else {
-                // Login failed but user exists (likely password error)
                 val errorMessage =
                     loginResult.exceptionOrNull()?.message ?: "Incorrect email or password."
 
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = errorMessage
-                )
+                if (errorMessage == "Incorrect email or password.") {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        showCreateAccountDialog = true
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = errorMessage
+                    )
+                }
             }
         }
     }
@@ -156,13 +171,26 @@ class SignInViewModel(
             val signUpResult = authRepository.signUp(email, password)
 
             if (signUpResult.isSuccess) {
+                val eligibilityResult = authRepository.confirmEligibility()
+                if (eligibilityResult.isFailure) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = eligibilityResult.exceptionOrNull()?.message
+                    )
+                    return@launch
+                }
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     shouldNavigateToUserName = true
                 )
             } else {
-                val errorMessage =
+                val repositoryMessage =
                     signUpResult.exceptionOrNull()?.message ?: "Failed to create account."
+                val errorMessage = if (repositoryMessage == "ACCOUNT_EXISTS") {
+                    "An account already exists. Check your password or reset it."
+                } else {
+                    repositoryMessage
+                }
 
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,

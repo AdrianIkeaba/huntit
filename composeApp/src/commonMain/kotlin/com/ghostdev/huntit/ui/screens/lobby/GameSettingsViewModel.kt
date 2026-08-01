@@ -17,7 +17,8 @@ data class GameSettingsState(
     val error: String? = null,
     val roomName: String = "",
     val roundDuration: RoundDuration = RoundDuration.QUICK,
-    val roomId: String? = null
+    val roomId: String? = null,
+    val isGameDeleted: Boolean = false
 )
 
 class GameSettingsViewModel(
@@ -148,7 +149,7 @@ class GameSettingsViewModel(
                 onSuccess = {
                     // Clear the room code from storage on success
                     roomCodeStorage.clearRoomCode()
-                    _state.update { it.copy(isLoading = false) }
+                    _state.update { it.copy(isLoading = false, isGameDeleted = true) }
                 },
                 onFailure = { error ->
                     _state.update {

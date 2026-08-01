@@ -6,7 +6,6 @@ import com.ghostdev.huntit.data.model.SubmissionState
 import com.ghostdev.huntit.data.model.SubmissionStatus
 import com.ghostdev.huntit.data.repository.SubmissionRepository
 import com.ghostdev.huntit.data.repository.GameRepository
-import com.ghostdev.huntit.data.repository.VerificationResult
 import com.ghostdev.huntit.utils.ImageProcessor
 import com.ghostdev.huntit.utils.toUserFriendlyError
 import kotlinx.coroutines.CoroutineScope
@@ -205,12 +204,6 @@ class SubmissionViewModel : KoinComponent {
                 }
 
 
-                val base64Image = imageProcessor.imageToBase64(compressedImage) ?: run {
-                    _submissionState.value = SubmissionState.Error("Failed to encode image", true)
-                    return@launch
-                }
-
-
                 _submissionState.value = SubmissionState.Uploading()
                 val uploadResult = submissionRepository.uploadImage(
                     userId = userId,
@@ -219,7 +212,7 @@ class SubmissionViewModel : KoinComponent {
                     imageBytes = compressedImage
                 )
 
-                val imageUrl = uploadResult.getOrNull() ?: run {
+                val imagePath = uploadResult.getOrNull() ?: run {
                     _submissionState.value = SubmissionState.Error(
                         "Failed to upload image. Please check your connection.",
                         true,
@@ -245,137 +238,76 @@ class SubmissionViewModel : KoinComponent {
 
 
                 _submissionState.value = SubmissionState.Verifying()
-                val verificationResult = submissionRepository.verifyPhoto(
-                    imageBase64 = base64Image,
-                    challengeText = challenge,
-                    theme = theme,
+                val verificationResult = submissionRepository.verifyAndSubmitPhoto(
                     roomId = roomId,
-                    roundNumber = roundNumber
+                    roundNumber = roundNumber,
+                    imagePath = imagePath
                 )
-
 
                 if (verificationResult.isFailure) {
                     val error = verificationResult.exceptionOrNull()
                     val errorMessage = error?.message ?: ""
-                    
 
-                    if (errorMessage.contains("Round mismatch") || 
-                        errorMessage.contains("different round than the current game round")) {
-                        
-
+                    if (
+                        errorMessage.contains("already ended", ignoreCase = true) ||
+                        errorMessage.contains("no longer accepting", ignoreCase = true) ||
+                        errorMessage.contains("round mismatch", ignoreCase = true)
+                    ) {
                         _cachedReviewData = ReviewData(
                             isSuccess = false,
                             challenge = challenge,
                             reason = "Round has already ended. You were too late!",
                             points = 0
                         )
-                        
 
                         _submissionState.value = SubmissionState.Failed(
                             reason = "Round has already ended. You were too late!",
                             challenge = challenge,
                             points = 0,
-                            canRetry = false // Can't retry for expired round
+                            canRetry = false
                         )
-                        
 
                         _roundEndedError = true
-                        
                         return@launch
                     }
-                    
 
                     val exception = verificationResult.exceptionOrNull() as? Exception
                     _submissionState.value = SubmissionState.Error(
-                        exception.toUserFriendlyError("Failed to verify photo. Please try again."),
+                        exception.toUserFriendlyError(
+                            "Failed to verify and submit photo. Please try again."
+                        ),
                         true,
                         exception
                     )
                     return@launch
                 }
-                
 
                 val verification = verificationResult.getOrNull()!!
 
-
-                val submissionResult = submissionRepository.submitRound(
-                    roomId = roomId,
-                    userId = userId,
-                    roundNumber = roundNumber,
-                    imageUrl = imageUrl,
-                    isSuccess = verification.isValid
-                )
-
-
-                if (submissionResult.isFailure) {
-                    val error = submissionResult.exceptionOrNull()
-                    val errorMessage = error?.message ?: ""
-                    
-
-                    if (errorMessage.contains("Round mismatch") || 
-                        errorMessage.contains("different round than the current game round")) {
-                        
-
-                        _cachedReviewData = ReviewData(
-                            isSuccess = false,
-                            challenge = challenge,
-                            reason = "Round has already ended. You were too late!",
-                            points = 0
-                        )
-                        
-
-                        _submissionState.value = SubmissionState.Failed(
-                            reason = "Round has already ended. You were too late!",
-                            challenge = challenge,
-                            points = 0,
-                            canRetry = false // Can't retry for expired round
-                        )
-                        
-
-                        _roundEndedError = true
-                        
-                        return@launch
-                    }
-                    
-                    val exception = submissionResult.exceptionOrNull() as? Exception
-                    _submissionState.value = SubmissionState.Error(
-                        exception.toUserFriendlyError("Failed to submit result. Please try again."),
-                        true,
-                        exception
-                    )
-                    return@launch
-                }
-                
-                val submission = submissionResult.getOrNull()!!
-
-
-
                 if (verification.isValid) {
-
                     _cachedReviewData = ReviewData(
                         isSuccess = true,
                         challenge = challenge,
-                        points = submission.pointsEarned,
+                        points = verification.pointsEarned,
                     )
 
                     _submissionState.value = SubmissionState.Success(
-                        points = submission.pointsEarned,
+                        points = verification.pointsEarned,
                         challenge = challenge,
                         message = "Photo matches the challenge!"
                     )
                 } else {
-
                     _cachedReviewData = ReviewData(
                         isSuccess = false,
                         challenge = challenge,
                         reason = verification.reason,
-                        points = 0
+                        points = verification.pointsEarned
                     )
 
                     _submissionState.value = SubmissionState.Failed(
                         reason = verification.reason,
                         challenge = challenge,
-                        points = 0
+                        points = verification.pointsEarned
                     )
                 }
 

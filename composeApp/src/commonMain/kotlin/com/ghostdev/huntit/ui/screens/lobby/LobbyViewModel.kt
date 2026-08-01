@@ -12,6 +12,8 @@ import com.ghostdev.huntit.data.model.ParticipantUiModel
 import com.ghostdev.huntit.data.model.ProfileDto
 import com.ghostdev.huntit.data.repository.GameRepository
 import com.ghostdev.huntit.data.repository.GameSetupRepository
+import com.ghostdev.huntit.data.repository.ReportReason
+import com.ghostdev.huntit.data.repository.SafetyRepository
 import com.ghostdev.huntit.utils.toClipEntry
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
@@ -37,14 +39,16 @@ data class LobbyState(
     val showKickedDialog: Boolean = false,
     val isStartingGame: Boolean = false,
     val gameStarted: Boolean = false,
-    val voluntaryLeave: Boolean = false
+    val voluntaryLeave: Boolean = false,
+    val actionMessage: String? = null
 )
 
 class LobbyViewModel(
     private val gameSetupRepository: GameSetupRepository,
     private val gameRepository: GameRepository,
     private val supabaseClient: SupabaseClient,
-    private val roomCodeStorage: RoomCodeStorage
+    private val roomCodeStorage: RoomCodeStorage,
+    private val safetyRepository: SafetyRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LobbyState(isLoading = true))
@@ -309,7 +313,7 @@ class LobbyViewModel(
         val uncachedUserIds = userIds.filter { it !in profilesCache }
         if (uncachedUserIds.isNotEmpty()) {
             try {
-                val newProfiles = supabaseClient.postgrest["profiles"]
+                val newProfiles = supabaseClient.postgrest["player_profiles"]
                     .select(columns = Columns.ALL) {
                         filter {
                             isIn("id", uncachedUserIds)
@@ -417,7 +421,7 @@ class LobbyViewModel(
         val profiles = if (userIds.isNotEmpty()) {
             // For simplicity, let's just fetch all profiles and filter client-side
             // In a production app, you might want to implement a more efficient query
-            val allProfiles = supabaseClient.postgrest["profiles"]
+            val allProfiles = supabaseClient.postgrest["player_profiles"]
                 .select(columns = Columns.ALL)
                 .decodeList<ProfileDto>()
 
@@ -449,6 +453,58 @@ class LobbyViewModel(
 
     fun clearError() {
         _state.update { it.copy(error = null) }
+    }
+
+    fun clearActionMessage() {
+        _state.update { it.copy(actionMessage = null) }
+    }
+
+    fun reportParticipant(
+        participantId: String,
+        reason: ReportReason
+    ) {
+        viewModelScope.launch {
+            val roomId = _state.value.gameRoomDetails?.id ?: return@launch
+            safetyRepository.reportPlayer(
+                reportedUserId = participantId,
+                roomId = roomId,
+                reason = reason,
+                details = null
+            ).fold(
+                onSuccess = {
+                    _state.update {
+                        it.copy(actionMessage = "Report submitted. Thank you for helping keep Hunt.it safe.")
+                    }
+                },
+                onFailure = { error ->
+                    _state.update {
+                        it.copy(error = error.message ?: "Could not submit report")
+                    }
+                }
+            )
+        }
+    }
+
+    fun blockParticipant(participantId: String) {
+        viewModelScope.launch {
+            safetyRepository.blockPlayer(participantId).fold(
+                onSuccess = {
+                    _state.update {
+                        it.copy(
+                            participants = it.participants.filterNot { participant ->
+                                participant.id == participantId
+                            },
+                            actionMessage = "Player blocked. You will not be matched together again."
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _state.update {
+                        it.copy(error = error.message ?: "Could not block player")
+                    }
+                }
+            )
+        }
     }
 
     fun getCurrentRoomCode(): String {

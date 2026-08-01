@@ -14,15 +14,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.ghostdev.huntit.data.model.GameTheme
 import com.ghostdev.huntit.data.model.RoundDuration
+import com.ghostdev.huntit.data.repository.ReportReason
 import com.ghostdev.huntit.ui.components.AnimatedBackground
 import com.ghostdev.huntit.ui.components.StyledSnackbarHost
 import com.ghostdev.huntit.ui.theme.MainYellow
@@ -77,6 +83,8 @@ fun PublicGamesScreen(
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    var roomToReport by remember { mutableStateOf<PublicGameUiModel?>(null) }
+    var roomHostToBlock by remember { mutableStateOf<PublicGameUiModel?>(null) }
     
     // Handle navigation when successfully joining a game
     LaunchedEffect(state.joinSuccessRoomCode) {
@@ -108,6 +116,13 @@ fun PublicGamesScreen(
                 snackbarHostState.showSnackbar(if (isUserFriendlyError) displayError else "Error: $displayError")
             }
             viewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(state.actionMessage) {
+        state.actionMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearActionMessage()
         }
     }
     
@@ -223,7 +238,9 @@ fun PublicGamesScreen(
                             items(state.games) { game ->
                                 PublicGameCard(
                                     game = game,
-                                    onClick = { viewModel.selectGame(game) }
+                                    onClick = { viewModel.selectGame(game) },
+                                    onReport = { roomToReport = game },
+                                    onBlockHost = { roomHostToBlock = game }
                                 )
                             }
                         }
@@ -240,6 +257,60 @@ fun PublicGamesScreen(
                     onDismiss = { viewModel.dismissJoinDialog() }
                 )
             }
+
+            roomToReport?.let { game ->
+                AlertDialog(
+                    onDismissRequest = { roomToReport = null },
+                    title = { Text("REPORT THIS ROOM?") },
+                    text = {
+                        Column {
+                            Text("Choose the reason for reporting “${game.roomName}”.")
+                            ReportReason.entries.forEach { reason ->
+                                TextButton(
+                                    onClick = {
+                                        viewModel.reportRoom(game, reason)
+                                        roomToReport = null
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(reason.displayName)
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {},
+                    dismissButton = {
+                        TextButton(onClick = { roomToReport = null }) {
+                            Text("CANCEL")
+                        }
+                    }
+                )
+            }
+
+            roomHostToBlock?.let { game ->
+                AlertDialog(
+                    onDismissRequest = { roomHostToBlock = null },
+                    title = { Text("BLOCK THIS HOST?") },
+                    text = {
+                        Text("Their public rooms will be hidden and you will not be placed in the same room.")
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel.blockRoomHost(game)
+                                roomHostToBlock = null
+                            }
+                        ) {
+                            Text("BLOCK")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { roomHostToBlock = null }) {
+                            Text("CANCEL")
+                        }
+                    }
+                )
+            }
         }
         
         // Snackbar for errors
@@ -254,6 +325,8 @@ fun PublicGamesScreen(
 fun PublicGameCard(
     game: PublicGameUiModel,
     onClick: () -> Unit,
+    onReport: () -> Unit,
+    onBlockHost: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -400,6 +473,18 @@ fun PublicGameCard(
                                 color = GameBlack
                             )
                         )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onReport) {
+                        Text("REPORT ROOM", color = Color(0xFF8A4B00))
+                    }
+                    TextButton(onClick = onBlockHost) {
+                        Text("BLOCK HOST", color = Color(0xFFB91C1C))
                     }
                 }
             }

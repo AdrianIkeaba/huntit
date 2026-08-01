@@ -6,12 +6,9 @@ import com.russhwolf.settings.set
 
 class PreferencesManager(private val settings: Settings) {
 
-    fun saveAccessToken(token: String) {
-        settings[KEY_ACCESS_TOKEN] = token
-    }
-
-    fun getAccessToken(): String? {
-        return settings.getStringOrNull(KEY_ACCESS_TOKEN)
+    fun clearLegacyAuthState() {
+        settings.remove(KEY_ACCESS_TOKEN)
+        settings.remove(KEY_IS_LOGGED_IN)
     }
 
     fun saveUserId(userId: String) {
@@ -31,14 +28,11 @@ class PreferencesManager(private val settings: Settings) {
     }
 
     fun saveAvatarId(id: Int) {
-        println("Saving avatarId to preferences: $id")
         settings[KEY_AVATAR_ID] = id
     }
 
     fun getAvatarId(): Int {
-        val value = settings.getInt(KEY_AVATAR_ID, 1) // Default to avatar 1
-        println("Reading avatarId from preferences: $value")
-        return value
+        return settings.getInt(KEY_AVATAR_ID, 1) // Default to avatar 1
     }
 
     fun saveEmail(email: String) {
@@ -47,14 +41,6 @@ class PreferencesManager(private val settings: Settings) {
 
     fun getEmail(): String {
         return settings.getStringOrNull(KEY_EMAIL) ?: ""
-    }
-
-    fun saveIsLoggedIn(isLoggedIn: Boolean) {
-        settings[KEY_IS_LOGGED_IN] = isLoggedIn
-    }
-
-    fun isLoggedIn(): Boolean {
-        return settings.getBoolean(KEY_IS_LOGGED_IN, false)
     }
 
     fun hasCompletedProfile(): Boolean {
@@ -110,6 +96,8 @@ class PreferencesManager(private val settings: Settings) {
     }
 
     companion object {
+        // Removed in release order 4. Retained only so upgrades can delete tokens
+        // written by older builds; Supabase Auth owns session persistence now.
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_USER_ID = "user_id"
         private const val KEY_DISPLAY_NAME = "display_name"

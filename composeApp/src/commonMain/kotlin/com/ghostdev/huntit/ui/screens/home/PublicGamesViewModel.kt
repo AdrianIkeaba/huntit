@@ -7,6 +7,8 @@ import com.ghostdev.huntit.data.model.GameRoomDto
 import com.ghostdev.huntit.data.model.GameTheme
 import com.ghostdev.huntit.data.model.RoundDuration
 import com.ghostdev.huntit.data.repository.GameSetupRepository
+import com.ghostdev.huntit.data.repository.ReportReason
+import com.ghostdev.huntit.data.repository.SafetyRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +17,7 @@ import kotlinx.coroutines.launch
 
 data class PublicGameUiModel(
     val id: String,
+    val hostId: String,
     val roomCode: String,
     val roomName: String,
     val theme: GameTheme,
@@ -32,12 +35,14 @@ data class PublicGamesState(
     val isJoining: Boolean = false,
     val showJoinDialog: Boolean = false,
     val selectedGame: PublicGameUiModel? = null,
-    val joinSuccessRoomCode: String? = null
+    val joinSuccessRoomCode: String? = null,
+    val actionMessage: String? = null
 )
 
 class PublicGamesViewModel(
     private val gameSetupRepository: GameSetupRepository,
-    private val roomCodeStorage: RoomCodeStorage
+    private val roomCodeStorage: RoomCodeStorage,
+    private val safetyRepository: SafetyRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PublicGamesState())
@@ -70,6 +75,7 @@ class PublicGamesViewModel(
                             gameRoom.id?.let { roomId ->
                                 PublicGameUiModel(
                                     id = roomId,
+                                    hostId = gameRoom.hostId,
                                     roomCode = gameRoom.roomCode,
                                     roomName = gameRoom.roomName,
                                     theme = gameRoom.theme,
@@ -169,6 +175,54 @@ class PublicGamesViewModel(
 
     fun clearError() {
         _state.update { it.copy(error = null) }
+    }
+
+    fun clearActionMessage() {
+        _state.update { it.copy(actionMessage = null) }
+    }
+
+    fun reportRoom(game: PublicGameUiModel, reason: ReportReason) {
+        viewModelScope.launch {
+            safetyRepository.reportPlayer(
+                reportedUserId = game.hostId,
+                roomId = game.id,
+                reason = reason,
+                details = "Public room: ${game.roomName}".take(500)
+            ).fold(
+                onSuccess = {
+                    _state.update {
+                        it.copy(actionMessage = "Room report submitted for review.")
+                    }
+                },
+                onFailure = { error ->
+                    _state.update {
+                        it.copy(error = error.message ?: "Could not report room")
+                    }
+                }
+            )
+        }
+    }
+
+    fun blockRoomHost(game: PublicGameUiModel) {
+        viewModelScope.launch {
+            safetyRepository.blockPlayer(game.hostId).fold(
+                onSuccess = {
+                    _state.update {
+                        it.copy(
+                            games = it.games.filterNot { room ->
+                                room.hostId == game.hostId
+                            },
+                            actionMessage = "Host blocked. Their public rooms are now hidden."
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _state.update {
+                        it.copy(error = error.message ?: "Could not block host")
+                    }
+                }
+            )
+        }
     }
 
     fun resetJoinSuccess() {

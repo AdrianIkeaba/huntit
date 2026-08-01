@@ -104,6 +104,7 @@ data class RoundSubmissionDto @OptIn(ExperimentalTime::class) constructor(
     val status: SubmissionStatus = SubmissionStatus.PENDING,
     @SerialName("image_url") val imageUrl: String? = null,
     @SerialName("points_earned") val pointsEarned: Int = 0,
+    @SerialName("verification_reason") val verificationReason: String? = null,
     @SerialName("submitted_at") val submittedAt: Instant? = null,
     @SerialName("verified_at") val verifiedAt: Instant? = null
 )

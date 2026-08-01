@@ -17,3 +17,12 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# Android release signing material must never be committed.
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# The deployed policy website is maintained as its own Git repository.
+release-policy-site/

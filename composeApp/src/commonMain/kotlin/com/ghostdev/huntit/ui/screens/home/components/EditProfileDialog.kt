@@ -70,7 +70,9 @@ fun EditProfileDialog(
     isLoading: Boolean,
     onDismiss: () -> Unit,
     onSave: (displayName: String, avatarId: Int) -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onPrivacyAndSafety: () -> Unit,
+    onDeleteAccount: () -> Unit
 ) {
     var selectedAvatarId by remember { mutableStateOf(user.avatarId) }
     var displayName by remember { mutableStateOf(user.displayName) }
@@ -251,6 +253,34 @@ fun EditProfileDialog(
                 HorizontalDivider()
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "PRIVACY & SAFETY",
+                    style = TextStyle(
+                        fontFamily = testSohneFont(),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    ),
+                    color = GameBlack,
+                    modifier = Modifier
+                        .clickable(onClick = onPrivacyAndSafety)
+                        .padding(8.dp)
+                )
+
+                Text(
+                    text = "DELETE ACCOUNT",
+                    style = TextStyle(
+                        fontFamily = testSohneFont(),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    ),
+                    color = MainRed,
+                    modifier = Modifier
+                        .clickable(onClick = onDeleteAccount)
+                        .padding(8.dp)
+                )
 
                 // Logout Button
                 Row(

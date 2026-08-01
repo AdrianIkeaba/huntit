@@ -46,10 +46,12 @@ import com.ghostdev.huntit.data.model.User
 import com.ghostdev.huntit.ui.components.AnimatedBackground
 import com.ghostdev.huntit.ui.components.StyledSnackbarHost
 import com.ghostdev.huntit.ui.screens.home.components.EditProfileDialog
+import com.ghostdev.huntit.ui.screens.home.components.DeleteAccountDialog
 import com.ghostdev.huntit.ui.screens.home.components.JoinOptionDialog
 import com.ghostdev.huntit.ui.screens.home.components.JoinRoomDialog
 import com.ghostdev.huntit.ui.screens.home.components.LogoutConfirmationDialog
 import com.ghostdev.huntit.ui.screens.home.components.SoundSettingsDialog
+import com.ghostdev.huntit.ui.screens.home.components.PrivacyAndSafetyDialog
 import com.ghostdev.huntit.ui.theme.MainYellow
 import com.ghostdev.huntit.ui.theme.patrickHandFont
 import com.ghostdev.huntit.ui.theme.testSohneFont
@@ -176,6 +178,12 @@ it
         }
     }
 
+    LaunchedEffect(uiState.accountDeleted) {
+        if (uiState.accountDeleted) {
+            navigateToSignIn()
+        }
+    }
+
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (audioPlayer != null) {
@@ -189,6 +197,9 @@ it
                 isLoggingOut = uiState.isLoggingOut,
                 showProfileDialog = uiState.showProfileDialog,
                 showLogoutConfirmation = uiState.showLogoutConfirmation,
+                showPrivacyAndSafety = uiState.showPrivacyAndSafety,
+                showDeleteAccountConfirmation = uiState.showDeleteAccountConfirmation,
+                isDeletingAccount = uiState.isDeletingAccount,
                 onEditProfileClick = { 
                     safeCall { viewModel.showProfileDialog() }
                 },
@@ -203,6 +214,21 @@ it
                 },
                 onCancelLogout = {
                     safeCall { viewModel.hideLogoutConfirmation() }
+                },
+                onPrivacyAndSafety = {
+                    safeCall { viewModel.showPrivacyAndSafety() }
+                },
+                onDismissPrivacyAndSafety = {
+                    safeCall { viewModel.hidePrivacyAndSafety() }
+                },
+                onDeleteAccount = {
+                    safeCall { viewModel.showDeleteAccountConfirmation() }
+                },
+                onConfirmDeleteAccount = {
+                    safeCall { viewModel.deleteAccount() }
+                },
+                onCancelDeleteAccount = {
+                    safeCall { viewModel.hideDeleteAccountConfirmation() }
                 },
                 onDismissProfileDialog = { 
                     safeCall { viewModel.hideProfileDialog() }
@@ -277,11 +303,19 @@ private fun HomeComponent(
     isLoggingOut: Boolean = false,
     showProfileDialog: Boolean = false,
     showLogoutConfirmation: Boolean = false,
+    showPrivacyAndSafety: Boolean = false,
+    showDeleteAccountConfirmation: Boolean = false,
+    isDeletingAccount: Boolean = false,
     onEditProfileClick: () -> Unit = {},
     onUpdateProfile: (String, Int) -> Unit = { _, _ -> },
     onLogout: () -> Unit = {},
     onConfirmLogout: () -> Unit = {},
     onCancelLogout: () -> Unit = {},
+    onPrivacyAndSafety: () -> Unit = {},
+    onDismissPrivacyAndSafety: () -> Unit = {},
+    onDeleteAccount: () -> Unit = {},
+    onConfirmDeleteAccount: () -> Unit = {},
+    onCancelDeleteAccount: () -> Unit = {},
     onDismissProfileDialog: () -> Unit = {},
     createGameRoom: () -> Unit = {},
     onJoinRoom: (String) -> Unit = {},
@@ -524,7 +558,9 @@ private fun HomeComponent(
                     isLoading = isLoading,
                     onDismiss = onDismissProfileDialog,
                     onSave = onUpdateProfile,
-                    onLogout = onLogout
+                    onLogout = onLogout,
+                    onPrivacyAndSafety = onPrivacyAndSafety,
+                    onDeleteAccount = onDeleteAccount
                 )
             }
 
@@ -534,6 +570,18 @@ private fun HomeComponent(
                     isLoading = isLoggingOut,
                     onDismiss = onCancelLogout,
                     onConfirmLogout = onConfirmLogout
+                )
+            }
+
+            if (showPrivacyAndSafety) {
+                PrivacyAndSafetyDialog(onDismiss = onDismissPrivacyAndSafety)
+            }
+
+            if (showDeleteAccountConfirmation) {
+                DeleteAccountDialog(
+                    isLoading = isDeletingAccount,
+                    onDismiss = onCancelDeleteAccount,
+                    onConfirm = onConfirmDeleteAccount
                 )
             }
             

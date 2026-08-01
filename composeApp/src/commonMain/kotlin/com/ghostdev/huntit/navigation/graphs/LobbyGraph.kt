@@ -49,6 +49,14 @@ fun NavGraphBuilder.lobbyGraph(
                 innerPadding = innerPadding,
                 onBackClick = {
                     navController.popBackStack()
+                },
+                navigateToHome = {
+                    navController.navigate(NavDestinations.HomeGraph.Home) {
+                        launchSingleTop = true
+                        popUpTo(NavDestinations.LobbyGraph) {
+                            inclusive = true
+                        }
+                    }
                 }
             )
         }

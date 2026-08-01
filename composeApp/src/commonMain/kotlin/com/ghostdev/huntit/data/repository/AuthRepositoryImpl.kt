@@ -10,33 +10,51 @@ import io.github.jan.supabase.auth.exception.AuthRestException
 import io.github.jan.supabase.auth.exception.AuthSessionMissingException
 import io.github.jan.supabase.auth.exception.AuthWeakPasswordException
 import io.github.jan.supabase.auth.providers.builtin.Email
-import io.github.jan.supabase.auth.user.UserSession
 import io.github.jan.supabase.exceptions.HttpRequestException
 import io.github.jan.supabase.exceptions.RestException
+import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
+import io.ktor.client.call.body
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlin.time.ExperimentalTime
+import kotlin.time.Clock
+
+private const val PASSWORD_RESET_EMAIL_MESSAGE =
+    "If an account exists for that email, a password reset link has been sent."
 
 @OptIn(ExperimentalTime::class)
 class AuthRepositoryImpl(
     private val client: SupabaseClient,
     private val preferencesManager: PreferencesManager
 ) : AuthRepository {
+    private val json = Json { ignoreUnknownKeys = true }
+
+    @Serializable
+    private data class DeleteAccountResponse(
+        val success: Boolean,
+        val error: String? = null
+    )
+
+    init {
+        // Remove the redundant plaintext access token and login flag written by
+        // older app versions. The auth SDK persists and refreshes its own session.
+        preferencesManager.clearLegacyAuthState()
+    }
 
     override suspend fun hasCompletedOnboarding(): Boolean {
         return preferencesManager.hasCompletedOnboarding()
     }
+
     override suspend fun signUp(email: String, password: String): Result<User> {
-        var signUpSuccessful = false
         return try {
-            // Try to sign up
-            client.auth.signUpWith(Email) {
+            val signUpUser = client.auth.signUpWith(Email) {
                 this.email = email
                 this.password = password
             }
-            signUpSuccessful = true
 
-            val userId = client.auth.currentUserOrNull()?.id
+            val userId = client.auth.currentUserOrNull()?.id ?: signUpUser?.id
                 ?: throw Exception("User registration failed - user ID not found")
 
             // Create profile entry
@@ -63,12 +81,10 @@ class AuthRepositoryImpl(
             // Save auth state
             val accessToken = client.auth.currentAccessTokenOrNull()
             if (accessToken != null) {
-                preferencesManager.saveAccessToken(accessToken)
                 preferencesManager.saveUserId(userId)
                 preferencesManager.saveEmail(email)
                 preferencesManager.saveDisplayName("")  // Empty name for new users
                 preferencesManager.saveAvatarId(avatarId)  // Save the avatar ID locally
-                preferencesManager.saveIsLoggedIn(true)
                 preferencesManager.setProfileCompleted(false)
             }
 
@@ -133,48 +149,23 @@ class AuthRepositoryImpl(
 
             val currentProfile = profiles.first()
 
-            // Create updated profile
-            val updatedProfile = if (avatarId >= 0) {
-                // Update both name and avatar
-                currentProfile.copy(displayName = displayName, avatarId = avatarId)
-            } else {
-                // Update only name
-                currentProfile.copy(displayName = displayName)
-            }
+            val updatedAvatarId = if (avatarId >= 0) avatarId else currentProfile.avatarId
 
-            // Save changes locally
-            preferencesManager.saveDisplayName(updatedProfile.displayName)
-            if (avatarId >= 0) {
-                preferencesManager.saveAvatarId(updatedProfile.avatarId)
-            }
-            preferencesManager.setProfileCompleted(true)
-
-            if (avatarId == 1) {
-                try {
-                    val verifyProfiles = client.postgrest["profiles"]
-                        .select(columns = Columns.ALL) {
-                            filter {
-                                eq("id", userId)
-                            }
-                        }.decodeList<ProfileDto>()
-
-                    if (verifyProfiles.isNotEmpty()) {
-                        val dbProfile = verifyProfiles.first()
-
-                        if (dbProfile.avatarId != 1) {
-                            client.postgrest["profiles"]
-                                .update(mapOf("avatar_id" to 1)) {
-                                    filter {
-                                        eq("id", userId)
-                                    }
-                                }
-                            preferencesManager.saveAvatarId(1)
-                        }
+            client.postgrest["profiles"]
+                .update({
+                    set("display_name", displayName)
+                    if (avatarId >= 0) {
+                        set("avatar_id", avatarId)
                     }
-                } catch (e: Exception) {
-                    // Silent fail - user can try again if needed
+                }) {
+                    filter {
+                        eq("id", userId)
+                    }
                 }
-            }
+
+            preferencesManager.saveDisplayName(displayName)
+            preferencesManager.saveAvatarId(updatedAvatarId)
+            preferencesManager.setProfileCompleted(true)
 
             Result.success("Profile updated successfully")
         } catch (e: HttpRequestException) {
@@ -229,12 +220,10 @@ class AuthRepositoryImpl(
             // Save auth state
             val accessToken = client.auth.currentAccessTokenOrNull()
             if (accessToken != null) {
-                preferencesManager.saveAccessToken(accessToken)
                 preferencesManager.saveUserId(authUser.id)
                 preferencesManager.saveEmail(profile.email)
                 preferencesManager.saveDisplayName(profile.displayName)
                 preferencesManager.saveAvatarId(profile.avatarId)
-                preferencesManager.saveIsLoggedIn(true)
                 preferencesManager.setProfileCompleted(profile.displayName.isNotEmpty())
             }
 
@@ -273,120 +262,95 @@ class AuthRepositoryImpl(
         }
     }
 
-    override suspend fun checkUserExists(email: String): Result<Boolean> {
-        return try {
-            val normalizedEmail = email.trim().lowercase()
-
-            // Get all profiles and filter
-            val allProfiles = client.postgrest["profiles"]
-                .select(columns = Columns.ALL)
-                .decodeList<ProfileDto>()
-
-            val matchingProfiles = allProfiles.filter {
-                it.email.trim().lowercase() == normalizedEmail
-            }
-
-            Result.success(matchingProfiles.isNotEmpty())
-        } catch (e: HttpRequestException) {
-            Result.failure(Exception("Network error. Please check your connection."))
-        } catch (e: RestException) {
-            Result.failure(Exception("Server error: ${e.message ?: "Unknown error"}"))
-        } catch (e: Exception) {
-            Result.failure(Exception("Unexpected error: ${e.message ?: "Unknown error"}"))
-        }
-    }
-
     override suspend fun sendPasswordResetEmail(email: String): Result<String> {
         return try {
             val redirectUrl = "huntit://reset-password"
 
-            // Send reset email with custom redirect to our app
+            // Auth is configured for PKCE, so the redirect carries a one-time code
+            // instead of reusable access and refresh tokens.
             client.auth.resetPasswordForEmail(email, redirectUrl)
 
-            Result.success("Password reset email sent. Please check your inbox.")
+            Result.success(PASSWORD_RESET_EMAIL_MESSAGE)
         } catch (e: AuthRestException) {
             val message = when (e.errorCode) {
                 AuthErrorCode.EmailAddressInvalid -> "Invalid email address."
                 AuthErrorCode.OverRequestRateLimit -> "Too many attempts. Try again later."
-                AuthErrorCode.UserNotFound -> "No account found with this email."
-                else -> "Failed to send reset email: ${e.errorCode?.name ?: "unknown error"}"
+                // Do not disclose whether the email belongs to an account.
+                AuthErrorCode.UserNotFound -> PASSWORD_RESET_EMAIL_MESSAGE
+                else -> "Unable to send a reset email right now. Please try again."
             }
-            Result.failure(Exception(message))
+            if (e.errorCode == AuthErrorCode.UserNotFound) {
+                Result.success(message)
+            } else {
+                Result.failure(Exception(message))
+            }
         } catch (e: HttpRequestException) {
             Result.failure(Exception("Network error. Please check your connection."))
         } catch (e: RestException) {
-            Result.failure(Exception("Server error: ${e.message ?: "Unknown error"}"))
+            Result.failure(Exception("Unable to send a reset email right now. Please try again."))
         } catch (e: Exception) {
-            Result.failure(Exception("Unexpected error: ${e.message ?: "Unknown error"}"))
+            Result.failure(Exception("Unable to send a reset email right now. Please try again."))
         }
     }
 
-    override suspend fun resetPasswordWithTokens(
-        accessToken: String,
-        refreshToken: String,
-        expiresIn: Long,
+    override suspend fun resetPasswordWithCode(
+        recoveryCode: String,
         newPassword: String
     ): Result<Unit> {
         return try {
-            // Create UserSession
-            val userSession = UserSession(
-                accessToken = accessToken,
-                refreshToken = refreshToken,
-                expiresIn = expiresIn,
-                tokenType = "bearer"
-            )
-
-            client.auth.importSession(userSession, autoRefresh = false)
-
-            // Update password
+            client.auth.exchangeCodeForSession(recoveryCode)
             client.auth.updateUser {
                 password = newPassword
             }
-
-            // Sign out
             client.auth.signOut()
+            preferencesManager.clearLegacyAuthState()
 
             Result.success(Unit)
+        } catch (e: AuthWeakPasswordException) {
+            Result.failure(Exception("Password does not meet security requirements."))
+        } catch (e: HttpRequestException) {
+            Result.failure(Exception("Network error. Please check your connection."))
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "Failed to reset password"))
+            // Invalid, expired, already-used, and device-mismatched PKCE links all
+            // receive the same response so auth details are not exposed.
+            Result.failure(Exception("This reset link is invalid or expired. Request a new one."))
         }
     }
 
     override suspend fun isLoggedIn(): Boolean {
-        // Always return true if the user is marked as logged in locally
-        // This ensures the user stays logged in even if session token expires temporarily
-        val isLoggedIn = preferencesManager.isLoggedIn()
-
-        if (isLoggedIn) {
-            // If we have a session already, just return true
-            if (client.auth.currentSessionOrNull() != null) {
-                return true
-            }
-
-            // Try to refresh the session if we don't have one but the user is marked as logged in
-            try {
-                // If refresh token is available, try refreshing the session
-                val refreshToken = preferencesManager.getAccessToken()
-                if (!refreshToken.isNullOrEmpty()) {
-                    client.auth.refreshCurrentSession()
-                    return true
-                }
-            } catch (e: Exception) {
-                return true
-            }
-
-            // Keep the user logged in even if session refresh fails
-            return true
+        return try {
+            client.auth.awaitInitialization()
+            client.auth.currentSessionOrNull() != null
+        } catch (_: Exception) {
+            false
         }
-        return false
+    }
+
+    override suspend fun confirmEligibility(): Result<Unit> {
+        return try {
+            val userId = getCurrentUserId()
+                ?: return Result.failure(Exception("User not logged in"))
+            val confirmedAt = Clock.System.now().toString()
+
+            client.postgrest["profiles"].update({
+                set("age_confirmed_at", confirmedAt)
+                set("terms_accepted_at", confirmedAt)
+            }) {
+                filter {
+                    eq("id", userId)
+                }
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(
+                Exception("Could not save your eligibility confirmation. Please try again.")
+            )
+        }
     }
 
     override suspend fun hasCompletedProfile(): Boolean {
         return preferencesManager.hasCompletedProfile()
-    }
-
-    override suspend fun getAccessToken(): String? {
-        return client.auth.currentAccessTokenOrNull() ?: preferencesManager.getAccessToken()
     }
 
     override suspend fun logout() {
@@ -397,6 +361,34 @@ class AuthRepositoryImpl(
         } finally {
             // Clear local storage on logout
             preferencesManager.clearAll()
+        }
+    }
+
+    override suspend fun deleteAccount(): Result<Unit> {
+        return try {
+            val response = client.functions.invoke(function = "delete-account")
+            val responseBody = response.body<String>()
+            val result = json.decodeFromString<DeleteAccountResponse>(responseBody)
+
+            if (!result.success) {
+                return Result.failure(
+                    Exception(result.error ?: "Account deletion failed")
+                )
+            }
+
+            try {
+                client.auth.signOut()
+            } catch (_: Exception) {
+                // The Auth user has already been removed server-side.
+            } finally {
+                preferencesManager.clearAll()
+            }
+
+            Result.success(Unit)
+        } catch (e: HttpRequestException) {
+            Result.failure(Exception("Network error. Please check your connection."))
+        } catch (_: Exception) {
+            Result.failure(Exception("We could not delete your account. Please try again."))
         }
     }
 
@@ -443,24 +435,17 @@ class AuthRepositoryImpl(
                 if (profiles.isNotEmpty()) {
                     val profile = profiles.first()
 
-                    val localAvatarId = preferencesManager.getAvatarId()
-                    val preferredAvatarId = if (localAvatarId == 1 && profile.avatarId != 1) {
-                        1
-                    } else {
-                        profile.avatarId
-                    }
-
                     // Save the latest data locally for future offline use
                     preferencesManager.saveEmail(profile.email)
                     preferencesManager.saveDisplayName(profile.displayName)
-                    preferencesManager.saveAvatarId(preferredAvatarId)
+                    preferencesManager.saveAvatarId(profile.avatarId)
 
                     return Result.success(
                         User(
                             id = profile.id,
                             email = profile.email,
                             displayName = profile.displayName,
-                            avatarId = preferredAvatarId, // Use our preferred avatar ID
+                            avatarId = profile.avatarId,
                             totalGamesPlayed = profile.totalGamesPlayed
                         )
                     )

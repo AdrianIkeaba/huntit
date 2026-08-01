@@ -38,6 +38,7 @@ import com.ghostdev.huntit.ui.components.AnimatedBackground
 import com.ghostdev.huntit.ui.components.StyledSnackbarHost
 import com.ghostdev.huntit.ui.theme.patrickHandFont
 import com.ghostdev.huntit.ui.theme.testSohneFont
+import com.ghostdev.huntit.utils.LocalDeepLinkHandler
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
@@ -52,16 +53,16 @@ private val ErrorRed = Color(0xFFFF4B4B)
 @Composable
 fun NewPasswordScreen(
     innerPadding: PaddingValues,
-    accessToken: String? = null,
-    refreshToken: String? = null,
-    expiresIn: Long? = null,
     navigateToLogin: () -> Unit,
     viewModel: NewPasswordViewModel = koinViewModel()
 ) {
+    val deepLinkHandler = LocalDeepLinkHandler.current
+    val passwordResetRequest = deepLinkHandler.passwordResetRequest.value
 
-    LaunchedEffect(accessToken, refreshToken) {
-        if (accessToken != null && refreshToken != null) {
-            viewModel.setTokens(accessToken, refreshToken, expiresIn)
+    LaunchedEffect(passwordResetRequest) {
+        passwordResetRequest?.let { request ->
+            viewModel.setRecoveryLink(request.recoveryCode, request.errorMessage)
+            deepLinkHandler.clearDeepLinkData()
         }
     }
 
@@ -73,7 +74,7 @@ fun NewPasswordScreen(
             val isUserFriendlyError = it.contains("Please enter") || 
                                      it.contains("Password must be") ||
                                      it.contains("Passwords don't match") ||
-                                     it.contains("Invalid reset link")
+                                     it.contains("reset link", ignoreCase = true)
 
             val displayError = if (isUserFriendlyError) {
                 it

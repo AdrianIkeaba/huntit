@@ -12,6 +12,8 @@ import com.ghostdev.huntit.data.repository.GameSetupRepositoryImpl
 import com.ghostdev.huntit.data.repository.LeaderboardRepository
 import com.ghostdev.huntit.data.repository.LeaderboardRepositoryImpl
 import com.ghostdev.huntit.data.repository.SoundSettingsRepository
+import com.ghostdev.huntit.data.repository.SafetyRepository
+import com.ghostdev.huntit.data.repository.SafetyRepositoryImpl
 import com.ghostdev.huntit.data.repository.DefaultSoundSettingsRepositoryImpl
 import com.ghostdev.huntit.data.repository.SubmissionRepository
 import com.ghostdev.huntit.data.repository.SubmissionRepositoryImpl
@@ -36,6 +38,7 @@ import com.ghostdev.huntit.utils.ImageProcessor
 import com.russhwolf.settings.Settings
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.auth.FlowType
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.postgrest.Postgrest
@@ -59,6 +62,7 @@ val dataModule = module {
     singleOf(::GameSetupRepositoryImpl) bind GameSetupRepository::class
     singleOf(::GameRepositoryImpl) bind GameRepository::class
     singleOf(::SubmissionRepositoryImpl) bind SubmissionRepository::class
+    singleOf(::SafetyRepositoryImpl) bind SafetyRepository::class
     singleOf(::LeaderboardRepositoryImpl) bind LeaderboardRepository::class
     singleOf(::DefaultSoundSettingsRepositoryImpl) bind SoundSettingsRepository::class
 }
@@ -88,7 +92,12 @@ fun createSupabaseClient(): SupabaseClient {
         supabaseUrl = BuildKonfig.SUPABASE_URL,
         supabaseKey = BuildKonfig.SUPABASE_KEY
     ) {
-        install(Auth)
+        install(Auth) {
+            // Password recovery links use a one-time authorization code. An
+            // intercepted custom-scheme link cannot be exchanged without the
+            // verifier stored on the device that requested the reset.
+            flowType = FlowType.PKCE
+        }
         install(Postgrest)
         install(Realtime)
         install(Storage)

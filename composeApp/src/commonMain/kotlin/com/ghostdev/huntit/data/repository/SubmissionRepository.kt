@@ -13,7 +13,7 @@ interface SubmissionRepository {
      * @param roomId The game room ID
      * @param roundNumber The round number
      * @param imageBytes The image data as bytes
-     * @return Result with the public URL of the uploaded image
+     * @return Result with the private storage object path
      */
     suspend fun uploadImage(
         userId: String,
@@ -23,38 +23,17 @@ interface SubmissionRepository {
     ): Result<String>
 
     /**
-     * Verify a photo against a challenge using AI
-     * @param imageBase64 The image encoded as base64 string
-     * @param challengeText The challenge text to verify against
-     * @param theme The game theme for context
-     * @param roomId The game room ID (optional, for server-side time validation)
-     * @param roundNumber The round number (optional, for server-side time validation)
-     * @return Result with verification result (isValid, reason)
+     * Verify the uploaded photo and atomically commit the server-owned score.
+     *
+     * The server downloads the exact private object at [imagePath], derives the
+     * challenge and theme from the database, and is the only authority allowed
+     * to finalize the submission.
      */
-    suspend fun verifyPhoto(
-        imageBase64: String,
-        challengeText: String,
-        theme: String,
-        roomId: String? = null,
-        roundNumber: Int? = null
-    ): Result<VerificationResult>
-
-    /**
-     * Submit a round result
-     * @param roomId The game room ID
-     * @param userId The user's ID
-     * @param roundNumber The round number
-     * @param imageUrl The URL of the uploaded image (null if skipped)
-     * @param isSuccess Whether the submission was successful
-     * @return Result with the created submission
-     */
-    suspend fun submitRound(
+    suspend fun verifyAndSubmitPhoto(
         roomId: String,
-        userId: String,
         roundNumber: Int,
-        imageUrl: String?,
-        isSuccess: Boolean
-    ): Result<RoundSubmissionDto>
+        imagePath: String
+    ): Result<VerificationResult>
 
     /**
      * Skip a round
@@ -87,5 +66,5 @@ interface SubmissionRepository {
 data class VerificationResult(
     val isValid: Boolean,
     val reason: String,
-    val confidence: Float = 0f
+    val pointsEarned: Int = 0
 )

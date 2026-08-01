@@ -19,10 +19,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ghostdev.huntit.data.model.ParticipantUiModel
+import com.ghostdev.huntit.data.repository.ReportReason
 import com.ghostdev.huntit.ui.screens.home.HomeViewModel
 import com.ghostdev.huntit.ui.theme.patrickHandFont
 import com.ghostdev.huntit.ui.theme.testSohneFont
@@ -58,10 +62,14 @@ fun ParticipantsBottomSheet(
     isCurrentUserHost: Boolean = false,
     currentUserId: String? = null,
     onRemoveParticipant: (ParticipantUiModel) -> Unit = {},
+    onReportParticipant: (ParticipantUiModel, ReportReason) -> Unit = { _, _ -> },
+    onBlockParticipant: (ParticipantUiModel) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     // State for showing remove confirmation dialog
     val showRemoveDialog = remember { mutableStateOf<ParticipantUiModel?>(null) }
+    val showReportDialog = remember { mutableStateOf<ParticipantUiModel?>(null) }
+    val showBlockDialog = remember { mutableStateOf<ParticipantUiModel?>(null) }
 
     // Sort participants so host is first, then alphabetically by name
     val sortedParticipants = participants.sortedWith(
@@ -188,6 +196,27 @@ fun ParticipantsBottomSheet(
                                 Spacer(modifier = Modifier.width(8.dp))
                             }
 
+                            if (participant.id != currentUserId) {
+                                Text(
+                                    text = "REPORT",
+                                    color = Color(0xFF8A4B00),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clickable { showReportDialog.value = participant }
+                                        .padding(6.dp)
+                                )
+                                Text(
+                                    text = "BLOCK",
+                                    color = Color(0xFFB91C1C),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clickable { showBlockDialog.value = participant }
+                                        .padding(6.dp)
+                                )
+                            }
+
                             // Show remove button only if current user is host and this is not the current user
                             if (isCurrentUserHost && participant.id != currentUserId && !participant.isHost) {
                                 // Remove button with 3D effect
@@ -233,6 +262,62 @@ fun ParticipantsBottomSheet(
             },
             onDismiss = {
                 showRemoveDialog.value = null
+            }
+        )
+    }
+
+    showReportDialog.value?.let { participant ->
+        AlertDialog(
+            onDismissRequest = { showReportDialog.value = null },
+            title = { Text("REPORT ${participant.name.uppercase()}?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Choose the main reason. Reports are private and reviewed for safety.")
+                    ReportReason.entries.forEach { reason ->
+                        TextButton(
+                            onClick = {
+                                onReportParticipant(participant, reason)
+                                showReportDialog.value = null
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(reason.displayName)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showReportDialog.value = null }) {
+                    Text("CANCEL")
+                }
+            }
+        )
+    }
+
+    showBlockDialog.value?.let { participant ->
+        AlertDialog(
+            onDismissRequest = { showBlockDialog.value = null },
+            title = { Text("BLOCK ${participant.name.uppercase()}?") },
+            text = {
+                Text(
+                    "You and this player will not be placed in the same future room. This is separate from reporting."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onBlockParticipant(participant)
+                        showBlockDialog.value = null
+                    }
+                ) {
+                    Text("BLOCK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBlockDialog.value = null }) {
+                    Text("CANCEL")
+                }
             }
         )
     }

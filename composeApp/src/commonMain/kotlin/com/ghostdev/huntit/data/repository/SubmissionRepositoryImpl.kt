@@ -36,8 +36,9 @@ class SubmissionRepositoryImpl(
                 upsert = true
             }
 
-            val publicUrl = bucket.publicUrl(fileName)
-            Result.success(publicUrl)
+            // Store the private object path. Access is authorized by Storage RLS;
+            // public URLs are intentionally not generated for player photos.
+            Result.success(fileName)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -48,122 +49,40 @@ class SubmissionRepositoryImpl(
         val success: Boolean,
         val valid: Boolean = false,
         val reason: String = "",
+        val points: Int = 0,
         val error: String? = null
     )
 
-    override suspend fun verifyPhoto(
-        imageBase64: String,
-        challengeText: String,
-        theme: String,
-        roomId: String?,
-        roundNumber: Int?
+    override suspend fun verifyAndSubmitPhoto(
+        roomId: String,
+        roundNumber: Int,
+        imagePath: String
     ): Result<VerificationResult> {
         return try {
-
-            // Make sure the base64 string doesn't have any prefixes
-            var cleanBase64 = imageBase64
-            if (cleanBase64.contains("base64,")) {
-                cleanBase64 = cleanBase64.substring(cleanBase64.indexOf("base64,") + 7)
-            }
-
-            // Check if base64 needs padding
-            val remainder = cleanBase64.length % 4
-            if (remainder > 0) {
-                cleanBase64 += "=".repeat(4 - remainder)
-            }
-
             val response = client.functions.invoke(
                 function = "verify-submission",
                 body = buildJsonObject {
-                    put("imageBase64", cleanBase64)
-                    put("challenge", challengeText)
-                    put("theme", theme)
-                    // Add roomId and roundNumber if available (for server-side validation)
-                    roomId?.let { put("roomId", it) }
-                    roundNumber?.let { put("roundNumber", it) }
+                    put("roomId", roomId)
+                    put("roundNumber", roundNumber)
+                    put("imagePath", imagePath)
                 }
             )
 
             val responseBody = response.body<String>()
+            val verifyResponse = json.decodeFromString<VerifySubmissionResponse>(responseBody)
 
-            try {
-                val verifyResponse = json.decodeFromString<VerifySubmissionResponse>(responseBody)
-
-                if (verifyResponse.success) {
-                    Result.success(
-                        VerificationResult(
-                            isValid = verifyResponse.valid,
-                            reason = verifyResponse.reason,
-                            confidence = 0f
-                        )
-                    )
-                } else {
-                    Result.success(
-                        VerificationResult(
-                            isValid = false,
-                            reason = verifyResponse.error ?: "Verification failed",
-                            confidence = 0f
-                        )
-                    )
-                }
-            } catch (jsonEx: Exception) {
-
+            if (verifyResponse.success) {
                 Result.success(
                     VerificationResult(
-                        isValid = false,
-                        reason = "Error processing verification response: ${jsonEx.message}",
-                        confidence = 0f
+                        isValid = verifyResponse.valid,
+                        reason = verifyResponse.reason,
+                        pointsEarned = verifyResponse.points
                     )
                 )
-            }
-        } catch (e: Exception) {
-
-            // Return a default failure result if verification fails
-            Result.success(
-                VerificationResult(
-                    isValid = false,
-                    reason = "Unable to verify photo: ${e.message}",
-                    confidence = 0f
-                )
-            )
-        }
-    }
-
-    override suspend fun submitRound(
-        roomId: String,
-        userId: String,
-        roundNumber: Int,
-        imageUrl: String?,
-        isSuccess: Boolean
-    ): Result<RoundSubmissionDto> {
-        return try {
-            // Call RPC function to handle submission
-            client.postgrest.rpc(
-                function = "submit_round",
-                parameters = buildJsonObject {
-                    put("p_room_id", roomId)
-                    put("p_user_id", userId)
-                    put("p_round_number", roundNumber)
-                    put("p_image_url", imageUrl)
-                    put("p_is_success", isSuccess)
-                }
-            )
-
-            // Fetch the created submission
-            val submissions = client.postgrest["round_submissions"]
-                .select(columns = Columns.ALL) {
-                    filter {
-                        eq("room_id", roomId)
-                        eq("user_id", userId)
-                        eq("round_number", roundNumber)
-                    }
-                }
-                .decodeList<RoundSubmissionDto>()
-
-            if (submissions.isEmpty()) {
-                Result.failure(Exception("Submission created but could not be fetched"))
             } else {
-                Result.success(submissions.first())
+                Result.failure(
+                    Exception(verifyResponse.error ?: "Verification failed")
+                )
             }
         } catch (e: Exception) {
             Result.failure(e)

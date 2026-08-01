@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,6 +41,7 @@ import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -146,10 +148,12 @@ fun SignInScreen(
         innerPadding = innerPadding,
         email = uiState.email,
         password = uiState.password,
+        eligibilityConfirmed = uiState.eligibilityConfirmed,
         isLoading = uiState.isLoading,
         showCreateAccountDialog = uiState.showCreateAccountDialog,
         onEmailChange = viewModel::onEmailChange,
         onPasswordChange = viewModel::onPasswordChange,
+        onEligibilityChange = viewModel::onEligibilityChange,
         onResetPasswordClick = navigateToResetPassword,
         onContinueClick = viewModel::onContinueClick,
         onDismissCreateAccountDialog = viewModel::onDismissCreateAccountDialog,
@@ -164,10 +168,12 @@ private fun SignInComponent(
     innerPadding: PaddingValues = PaddingValues(0.dp),
     email: String = "",
     password: String = "",
+    eligibilityConfirmed: Boolean = false,
     isLoading: Boolean = false,
     showCreateAccountDialog: Boolean = false,
     onEmailChange: (String) -> Unit = {},
     onPasswordChange: (String) -> Unit = {},
+    onEligibilityChange: (Boolean) -> Unit = {},
     onResetPasswordClick: () -> Unit = {},
     onContinueClick: () -> Unit = {},
     onDismissCreateAccountDialog: () -> Unit = {},
@@ -210,9 +216,11 @@ private fun SignInComponent(
                     GamifiedCard(
                         email = email,
                         password = password,
+                        eligibilityConfirmed = eligibilityConfirmed,
                         isLoading = isLoading,
                         onEmailChange = onEmailChange,
                         onPasswordChange = onPasswordChange,
+                        onEligibilityChange = onEligibilityChange,
                         onContinueClick = onContinueClick
                     )
 
@@ -278,14 +286,17 @@ private fun SignInComponent(
 fun GamifiedCard(
     email: String,
     password: String,
+    eligibilityConfirmed: Boolean,
     isLoading: Boolean,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
+    onEligibilityChange: (Boolean) -> Unit,
     onContinueClick: () -> Unit
 ) {
     // Get keyboard controller and focus manager to hide keyboard
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    val uriHandler = LocalUriHandler.current
 
     Box(
         modifier = Modifier
@@ -341,7 +352,33 @@ fun GamifiedCard(
                     )
                 )
 
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = eligibilityConfirmed,
+                        onCheckedChange = onEligibilityChange,
+                        enabled = !isLoading
+                    )
+                    Text(
+                        text = "I am 18 or older and agree to the Privacy Policy and Terms.",
+                        style = TextStyle(
+                            fontFamily = patrickHandFont(),
+                            fontSize = 14.sp,
+                            color = GameBlack
+                        ),
+                        modifier = Modifier.clickable {
+                            uriHandler.openUri(
+                                "https://huntit-privacy-safety.adrianikeaba.chatgpt.site/privacy/"
+                            )
+                        }
+                    )
+                }
+
+                Spacer(Modifier.height(20.dp))
 
                 // 3D Action Button
                 GamifiedButton(
@@ -541,7 +578,7 @@ fun CreateAccountDialog(
                     // Message
                     Text(
                         text = buildAnnotatedString {
-                            append("No account found with ")
+                            append("Couldn't sign in with ")
 
                             withStyle(
                                 style = SpanStyle(
@@ -552,7 +589,10 @@ fun CreateAccountDialog(
                                 append("$email.")
                             }
 
-                            append(" Would you like to create a new account with this email?")
+                            append(
+                                " If you're new, you can create an account. " +
+                                    "Otherwise, cancel and check your password."
+                            )
                         },
                         style = TextStyle(
                             fontFamily = patrickHandFont(),

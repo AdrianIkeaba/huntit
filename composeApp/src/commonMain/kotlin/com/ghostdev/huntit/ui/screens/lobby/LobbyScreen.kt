@@ -57,6 +57,7 @@ import androidx.compose.ui.zIndex
 import com.ghostdev.huntit.data.model.GameRoomDto
 import com.ghostdev.huntit.data.model.GameTheme
 import com.ghostdev.huntit.data.model.ParticipantUiModel
+import com.ghostdev.huntit.data.repository.ReportReason
 import com.ghostdev.huntit.ui.components.AnimatedBackground
 import com.ghostdev.huntit.ui.components.QuickRulesDialog
 import com.ghostdev.huntit.ui.components.StyledSnackbarHost
@@ -76,7 +77,6 @@ import huntit.composeapp.generated.resources.copy
 import huntit.composeapp.generated.resources.fashion
 import huntit.composeapp.generated.resources.info
 import huntit.composeapp.generated.resources.logout
-import huntit.composeapp.generated.resources.fashion_icon
 import huntit.composeapp.generated.resources.indoors
 import huntit.composeapp.generated.resources.indoors_icon
 import huntit.composeapp.generated.resources.outdoors
@@ -149,6 +149,7 @@ fun LobbyScreen(
         isLoading = state.isLoading,
         isStartingGame = state.isStartingGame,
         error = state.error,
+        actionMessage = state.actionMessage,
         isHost = state.isHost,
         currentUserId = viewModel.getCurrentUserId(),
         onCopyClick = { viewModel.copyRoomCode(clipboard) },
@@ -162,7 +163,14 @@ fun LobbyScreen(
         onRemoveParticipant = { participant ->
             viewModel.removeParticipant(participant.id)
         },
-        onErrorShown = { viewModel.clearError() }
+        onReportParticipant = { participant, reason ->
+            viewModel.reportParticipant(participant.id, reason)
+        },
+        onBlockParticipant = { participant ->
+            viewModel.blockParticipant(participant.id)
+        },
+        onErrorShown = { viewModel.clearError() },
+        onActionMessageShown = { viewModel.clearActionMessage() }
     )
 }
 
@@ -177,6 +185,7 @@ private fun LobbyComponent(
     isLoading: Boolean = false,
     isStartingGame: Boolean = false,
     error: String? = null,
+    actionMessage: String? = null,
     isHost: Boolean = true,
     currentUserId: String? = null,
     onCopyClick: () -> Unit = {},
@@ -184,7 +193,10 @@ private fun LobbyComponent(
     onSettingsClick: () -> Unit = {},
     onLeaveClick: () -> Unit = {},
     onRemoveParticipant: (ParticipantUiModel) -> Unit = {},
-    onErrorShown: () -> Unit = {}
+    onReportParticipant: (ParticipantUiModel, ReportReason) -> Unit = { _, _ -> },
+    onBlockParticipant: (ParticipantUiModel) -> Unit = {},
+    onErrorShown: () -> Unit = {},
+    onActionMessageShown: () -> Unit = {}
 ) {
     var showBottomSheet by remember { mutableStateOf(false) }
     var showQuickRulesDialog by remember { mutableStateOf(false) }
@@ -222,6 +234,13 @@ private fun LobbyComponent(
             snackbarHostState.showSnackbar(if (isUserFriendlyError) displayError else "Error: $displayError")
 
             onErrorShown()
+        }
+    }
+
+    LaunchedEffect(actionMessage) {
+        if (actionMessage != null) {
+            snackbarHostState.showSnackbar(actionMessage)
+            onActionMessageShown()
         }
     }
 
@@ -638,6 +657,8 @@ private fun LobbyComponent(
                         isCurrentUserHost = isHost,
                         currentUserId = currentUserId,
                         onRemoveParticipant = onRemoveParticipant,
+                        onReportParticipant = onReportParticipant,
+                        onBlockParticipant = onBlockParticipant,
                         onDismiss = { showBottomSheet = false }
                     )
                 }

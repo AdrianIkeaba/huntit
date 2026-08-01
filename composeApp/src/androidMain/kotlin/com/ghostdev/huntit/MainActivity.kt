@@ -11,7 +11,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -31,11 +30,6 @@ import org.koin.core.context.startKoin
 import org.koin.java.KoinJavaComponent.get
 
 class MainActivity : ComponentActivity() {
-    companion object {
-        private lateinit var instance: MainActivity
-        val deepLinkAccessToken = mutableStateOf<String?>(null)
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         enableEdgeToEdge(
@@ -45,7 +39,6 @@ class MainActivity : ComponentActivity() {
             )
         )
         super.onCreate(savedInstanceState)
-        instance = this
         if (GlobalContext.getOrNull() == null) {
             startKoin {
                 modules(
@@ -129,22 +122,7 @@ class MainActivity : ComponentActivity() {
         if (intent.action == Intent.ACTION_VIEW) {
             val uri = intent.data
             if (uri != null && uri.scheme == "huntit" && uri.host == "reset-password") {
-                val fullUri = uri.toString()
-                DeepLinkHandler.instance.handleResetPasswordDeepLink(fullUri)
-
-                uri.fragment?.let { fragment ->
-                    val accessTokenParam = "access_token="
-                    if (fragment.contains(accessTokenParam)) {
-                        val startIndex =
-                            fragment.indexOf(accessTokenParam) + accessTokenParam.length
-                        val endIndex =
-                            fragment.indexOf("&", startIndex).takeIf { it >= 0 } ?: fragment.length
-                        val accessToken = fragment.substring(startIndex, endIndex)
-
-                        // Save the token to be used in the App
-                        deepLinkAccessToken.value = accessToken
-                    }
-                }
+                DeepLinkHandler.instance.handleResetPasswordDeepLink(uri.toString())
             }
         }
     }
